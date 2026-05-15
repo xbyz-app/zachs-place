@@ -1,0 +1,74 @@
+---
+---
+<div class="install-hint" id="install-hint" hidden>
+  <span class="text" id="install-text">Add to home screen</span>
+  <button class="dismiss" id="install-dismiss" aria-label="Dismiss">&times;</button>
+</div>
+
+<style>
+  .install-hint {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + var(--space-3));
+    right: var(--space-3);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: var(--bg-tile);
+    border: 1px solid var(--border-active);
+    border-radius: var(--radius-chip);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    font-size: 13px;
+    color: var(--text-primary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    animation: fadeIn 0.3s ease;
+  }
+  .install-hint .dismiss {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: var(--text-secondary);
+    font-size: 20px;
+    line-height: 1;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<script>
+  const KEY = "zachs-install-hint-dismissed";
+  const hint = document.getElementById("install-hint") as HTMLElement | null;
+  const text = document.getElementById("install-text") as HTMLElement | null;
+  const dismiss = document.getElementById("install-dismiss") as HTMLButtonElement | null;
+
+  if (hint && text && dismiss) {
+    const dismissed = localStorage.getItem(KEY) === "1";
+    const standalone = window.matchMedia("(display-mode: standalone)").matches
+      || (navigator as unknown as { standalone?: boolean }).standalone === true;
+
+    if (!dismissed && !standalone) {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        && !(window as unknown as { MSStream?: unknown }).MSStream;
+      if (isIOS) {
+        text.textContent = "Tap Share → Add to Home Screen";
+      }
+      window.setTimeout(() => { hint.hidden = false; }, 3000);
+
+      dismiss.addEventListener("click", () => {
+        hint.hidden = true;
+        localStorage.setItem(KEY, "1");
+      });
+
+      window.addEventListener("beforeinstallprompt", (e: Event) => {
+        e.preventDefault();
+        hint.addEventListener("click", async () => {
+          await (e as unknown as { prompt: () => Promise<void> }).prompt();
+          hint.hidden = true;
+          localStorage.setItem(KEY, "1");
+        }, { once: true });
+      });
+    }
+  }
+</script>
