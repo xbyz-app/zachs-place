@@ -1,0 +1,91 @@
+---
+import { getCollection } from "astro:content";
+import Icon from "./Icon.astro";
+
+const entries = (await getCollection("manual")).sort((a, b) => a.data.order - b.data.order);
+const rendered = await Promise.all(entries.map(async (entry) => {
+  const { Content } = await entry.render();
+  return { entry, Content };
+}));
+---
+<div class="manual-list">
+  {rendered.map(({ entry, Content }) => (
+    <details class="manual-section">
+      <summary>
+        <span class="icon"><Icon name={entry.data.icon} size={18} /></span>
+        <span class="title">{entry.data.title}</span>
+        <span class="chevron" aria-hidden="true">
+          <Icon name="chevron" size={16} />
+        </span>
+      </summary>
+      <div class="content">
+        <Content />
+      </div>
+    </details>
+  ))}
+</div>
+
+<style>
+  .manual-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .manual-section {
+    border-radius: var(--radius-tile);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    overflow: hidden;
+  }
+  .manual-section summary {
+    list-style: none;
+    cursor: pointer;
+    padding: var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    user-select: none;
+  }
+  .manual-section summary::-webkit-details-marker { display: none; }
+  .manual-section .icon {
+    color: var(--accent-warm);
+    display: inline-flex;
+  }
+  .manual-section .title {
+    flex: 1;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .manual-section .chevron {
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+    display: inline-flex;
+  }
+  .manual-section[open] .chevron {
+    transform: rotate(180deg);
+  }
+  .manual-section .content {
+    padding: 0 var(--space-4) var(--space-4);
+    color: var(--text-secondary);
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+  .manual-section .content :global(strong) { color: var(--text-primary); }
+  .manual-section .content :global(code) {
+    background: var(--bg-tile);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .manual-section .content :global(blockquote) {
+    border-left: 2px solid var(--accent-warm);
+    padding-left: var(--space-3);
+    margin: var(--space-3) 0;
+    color: var(--text-secondary);
+  }
+  .manual-section .content :global(ul) {
+    margin: var(--space-2) 0;
+    padding-left: var(--space-5);
+  }
+</style>
