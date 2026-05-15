@@ -1,0 +1,67 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+<BaseLayout title="Zach's Place">
+  <main class="guest">
+    <section class="hero">
+      <h1>You're at Zach's place.</h1>
+      <p class="hero-sub">Welcome — make yourself at home.</p>
+    </section>
+
+    <section class="controls" aria-label="Your room">
+      <h2 class="section-title">Your room</h2>
+      <div class="controls-grid" id="controls-grid">
+        <p class="placeholder">Controls coming next…</p>
+      </div>
+    </section>
+
+    <section class="manual" aria-label="House manual">
+      <h2 class="section-title">House manual</h2>
+      <p class="placeholder">Manual coming next…</p>
+    </section>
+  </main>
+
+  <style>
+    .guest {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: var(--space-6) var(--space-4) var(--space-10);
+    }
+    .hero {
+      position: relative;
+      padding: var(--space-10) var(--space-4) var(--space-8);
+      text-align: center;
+      border-radius: var(--radius-card);
+      background:
+        radial-gradient(140% 100% at 50% 0%, rgba(232, 160, 92, 0.18) 0%, rgba(232, 160, 92, 0.04) 40%, transparent 70%),
+        var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+    }
+    .hero h1 {
+      margin: 0 0 var(--space-2);
+      font-size: 28px;
+      line-height: 1.2;
+    }
+    .hero-sub {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 15px;
+    }
+    .section-title {
+      margin: 0 0 var(--space-4);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+    }
+    .controls, .manual {
+      margin-top: var(--space-8);
+    }
+    .placeholder {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+  </style>
+</BaseLayout>
