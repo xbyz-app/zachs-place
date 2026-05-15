@@ -13,7 +13,7 @@ describe("/api/switch handler", () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     global.fetch = mockFetch as unknown as typeof fetch;
 
-    const { default: handler } = await import("./switch");
+    const { default: handler } = await import("../../netlify/functions/switch");
     const res = await handler(new Request("https://lab.xbyz.fun/api/switch", {
       method: "POST",
       body: JSON.stringify({ entity: "live_nudes", state: "on" })
@@ -32,7 +32,7 @@ describe("/api/switch handler", () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     global.fetch = mockFetch as unknown as typeof fetch;
 
-    const { default: handler } = await import("./switch");
+    const { default: handler } = await import("../../netlify/functions/switch");
     await handler(new Request("https://lab.xbyz.fun/api/switch", {
       method: "POST",
       body: JSON.stringify({ entity: "lava_lamp", state: "off" })
@@ -47,7 +47,7 @@ describe("/api/switch handler", () => {
   });
 
   it("rejects unknown entity", async () => {
-    const { default: handler } = await import("./switch");
+    const { default: handler } = await import("../../netlify/functions/switch");
     const res = await handler(new Request("https://lab.xbyz.fun/api/switch", {
       method: "POST",
       body: JSON.stringify({ entity: "stroh_neon", state: "on" })

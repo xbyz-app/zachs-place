@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { callHA, ENTITY_ALLOWLIST, isAllowed } from "./_ha";
+import { callHA, ENTITY_ALLOWLIST, isAllowed } from "../../netlify/functions/_ha";
 
 const ORIGINAL_FETCH = global.fetch;
 

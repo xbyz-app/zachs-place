@@ -39,7 +39,7 @@ describe("/api/state handler", () => {
     });
     global.fetch = mockFetch as unknown as typeof fetch;
 
-    const { default: handler } = await import("./state");
+    const { default: handler } = await import("../../netlify/functions/state");
     const res = await handler(new Request("https://lab.xbyz.fun/api/state"));
 
     expect(res.status).toBe(200);
@@ -54,7 +54,7 @@ describe("/api/state handler", () => {
 
   it("returns 503 when HA is unreachable", async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("timeout")) as unknown as typeof fetch;
-    const { default: handler } = await import("./state");
+    const { default: handler } = await import("../../netlify/functions/state");
     const res = await handler(new Request("https://lab.xbyz.fun/api/state"));
     expect(res.status).toBe(503);
   });

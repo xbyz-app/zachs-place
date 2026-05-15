@@ -13,7 +13,7 @@ describe("/api/volume handler", () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     global.fetch = mockFetch as unknown as typeof fetch;
 
-    const { default: handler } = await import("./volume");
+    const { default: handler } = await import("../../netlify/functions/volume");
     const res = await handler(new Request("https://lab.xbyz.fun/api/volume", {
       method: "POST",
       body: JSON.stringify({ volume: 0.45 })
@@ -29,7 +29,7 @@ describe("/api/volume handler", () => {
   });
 
   it("rejects out-of-range volume", async () => {
-    const { default: handler } = await import("./volume");
+    const { default: handler } = await import("../../netlify/functions/volume");
     const res = await handler(new Request("https://lab.xbyz.fun/api/volume", {
       method: "POST",
       body: JSON.stringify({ volume: 1.5 })
@@ -38,7 +38,7 @@ describe("/api/volume handler", () => {
   });
 
   it("rejects non-number volume", async () => {
-    const { default: handler } = await import("./volume");
+    const { default: handler } = await import("../../netlify/functions/volume");
     const res = await handler(new Request("https://lab.xbyz.fun/api/volume", {
       method: "POST",
       body: JSON.stringify({ volume: "loud" })

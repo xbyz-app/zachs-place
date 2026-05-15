@@ -13,7 +13,7 @@ describe("/api/light handler", () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     global.fetch = mockFetch as unknown as typeof fetch;
 
-    const { default: handler } = await import("./light");
+    const { default: handler } = await import("../../netlify/functions/light");
     const res = await handler(new Request("https://lab.xbyz.fun/api/light", {
       method: "POST",
       body: JSON.stringify({ entity: "tv_bars", brightness: 200, rgb_color: [255, 150, 80] })
@@ -32,7 +32,7 @@ describe("/api/light handler", () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     global.fetch = mockFetch as unknown as typeof fetch;
 
-    const { default: handler } = await import("./light");
+    const { default: handler } = await import("../../netlify/functions/light");
     await handler(new Request("https://lab.xbyz.fun/api/light", {
       method: "POST",
       body: JSON.stringify({ entity: "tv_bars", state: "off" })
@@ -47,7 +47,7 @@ describe("/api/light handler", () => {
   });
 
   it("rejects unknown entity with 400", async () => {
-    const { default: handler } = await import("./light");
+    const { default: handler } = await import("../../netlify/functions/light");
     const res = await handler(new Request("https://lab.xbyz.fun/api/light", {
       method: "POST",
       body: JSON.stringify({ entity: "kitchen_chandelier", brightness: 100 })
@@ -56,7 +56,7 @@ describe("/api/light handler", () => {
   });
 
   it("rejects non-POST with 405", async () => {
-    const { default: handler } = await import("./light");
+    const { default: handler } = await import("../../netlify/functions/light");
     const res = await handler(new Request("https://lab.xbyz.fun/api/light", { method: "GET" }));
     expect(res.status).toBe(405);
   });
