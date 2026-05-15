@@ -1,8 +1,14 @@
 type State = {
   tv_bars: { state: "on" | "off"; brightness: number | null; rgb_color: [number, number, number] | null };
+  ig_logo: { state: "on" | "off"; rgb_color: [number, number, number] | null };
   sonos: { volume_level: number | null };
   live_nudes: { state: "on" | "off" };
   lava_lamp: { state: "on" | "off" };
+};
+
+const IG_MODES: Record<"pink" | "white", [number, number, number]> = {
+  pink:  [255, 0, 105],
+  white: [220, 230, 255]
 };
 
 const DEBOUNCE_MS = 200;
@@ -47,6 +53,23 @@ function renderState(state: State) {
       const dotRgb = dot.dataset.rgb?.split(",").map(Number) ?? [];
       const match = rgb && rgb[0] === dotRgb[0] && rgb[1] === dotRgb[1] && rgb[2] === dotRgb[2];
       dot.setAttribute("aria-pressed", String(Boolean(match)));
+    });
+  }
+
+  const ig = document.querySelector<HTMLElement>('[data-tile="ig_logo"]');
+  if (ig) {
+    const isOn = state.ig_logo.state === "on";
+    ig.dataset.on = String(isOn);
+    const rgb = state.ig_logo.rgb_color;
+    const activeMode = !isOn
+      ? "off"
+      : rgb && rgb[0] === IG_MODES.pink[0] && rgb[1] === IG_MODES.pink[1] && rgb[2] === IG_MODES.pink[2]
+        ? "pink"
+        : rgb && rgb[0] === IG_MODES.white[0] && rgb[1] === IG_MODES.white[1] && rgb[2] === IG_MODES.white[2]
+          ? "white"
+          : null;
+    ig.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((btn) => {
+      btn.setAttribute("aria-pressed", String(btn.dataset.mode === activeMode));
     });
   }
 
@@ -161,9 +184,39 @@ function wireVolumeTile() {
   });
 }
 
+function wireIGLogoTile() {
+  const tile = document.querySelector<HTMLElement>('[data-tile="ig_logo"]');
+  if (!tile) return;
+
+  tile.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const mode = btn.dataset.mode as "off" | "pink" | "white";
+      tile.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => {
+        b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+      });
+      tile.dataset.on = String(mode !== "off");
+
+      const payload: Record<string, unknown> = { entity: "ig_logo" };
+      if (mode === "off") {
+        payload.state = "off";
+      } else {
+        payload.rgb_color = IG_MODES[mode];
+        payload.brightness = 255;
+      }
+
+      try {
+        await api("/api/light", payload);
+      } catch {
+        setOffline(true);
+      }
+    });
+  });
+}
+
 loadInitialState();
 wireToggleTiles();
 wireTVTile();
+wireIGLogoTile();
 wireVolumeTile();
 
 if ("serviceWorker" in navigator) {

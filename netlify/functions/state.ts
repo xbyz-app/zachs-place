@@ -7,8 +7,9 @@ interface HAStateResponse {
 
 export default async function handler(_req: Request): Promise<Response> {
   try {
-    const [tvBars, liveNudes, lavaLamp, sonos] = await Promise.all([
+    const [tvBars, igLogo, liveNudes, lavaLamp, sonos] = await Promise.all([
       callHA("/api/states/light.office_tv_light_bars") as Promise<HAStateResponse>,
+      callHA("/api/states/light.ig_logo") as Promise<HAStateResponse>,
       callHA("/api/states/switch.live_nudes") as Promise<HAStateResponse>,
       callHA("/api/states/switch.lava_lamp") as Promise<HAStateResponse>,
       callHA("/api/states/media_player.zachs_office") as Promise<HAStateResponse>
@@ -19,6 +20,10 @@ export default async function handler(_req: Request): Promise<Response> {
         state: tvBars.state,
         brightness: tvBars.attributes.brightness ?? null,
         rgb_color: tvBars.attributes.rgb_color ?? null
+      },
+      ig_logo: {
+        state: igLogo.state,
+        rgb_color: igLogo.attributes.rgb_color ?? null
       },
       sonos: {
         volume_level: sonos.attributes.volume_level ?? null

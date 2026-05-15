@@ -4,9 +4,10 @@ import { callHA, ENTITY_ALLOWLIST, isAllowed } from "../../netlify/functions/_ha
 const ORIGINAL_FETCH = global.fetch;
 
 describe("ENTITY_ALLOWLIST", () => {
-  it("contains exactly the 4 guest-permitted entities", () => {
+  it("contains exactly the 5 guest-permitted entities", () => {
     expect(ENTITY_ALLOWLIST).toEqual([
       "light.office_tv_light_bars",
+      "light.ig_logo",
       "switch.live_nudes",
       "switch.lava_lamp",
       "media_player.zachs_office"

@@ -19,6 +19,11 @@ describe("/api/state handler", () => {
           state: "on",
           attributes: { brightness: 200, rgb_color: [255, 150, 80] }
         },
+        "https://example.ui.nabu.casa/api/states/light.ig_logo": {
+          entity_id: "light.ig_logo",
+          state: "on",
+          attributes: { rgb_color: [255, 0, 105] }
+        },
         "https://example.ui.nabu.casa/api/states/switch.live_nudes": {
           entity_id: "switch.live_nudes",
           state: "off",
@@ -46,6 +51,7 @@ describe("/api/state handler", () => {
     const body = await res.json();
     expect(body).toEqual({
       tv_bars: { state: "on", brightness: 200, rgb_color: [255, 150, 80] },
+      ig_logo: { state: "on", rgb_color: [255, 0, 105] },
       sonos: { volume_level: 0.3 },
       live_nudes: { state: "off" },
       lava_lamp: { state: "on" }

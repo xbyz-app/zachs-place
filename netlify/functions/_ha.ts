@@ -1,5 +1,6 @@
 export const ENTITY_ALLOWLIST = [
   "light.office_tv_light_bars",
+  "light.ig_logo",
   "switch.live_nudes",
   "switch.lava_lamp",
   "media_player.zachs_office"

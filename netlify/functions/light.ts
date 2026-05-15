@@ -1,7 +1,8 @@
 import { callHA, isAllowed } from "./_ha";
 
 const LIGHT_ENTITIES = new Map<string, string>([
-  ["tv_bars", "light.office_tv_light_bars"]
+  ["tv_bars", "light.office_tv_light_bars"],
+  ["ig_logo", "light.ig_logo"]
 ]);
 
 interface Body {
