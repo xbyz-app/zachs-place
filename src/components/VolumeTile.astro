@@ -1,0 +1,63 @@
+---
+import Icon from "./Icon.astro";
+---
+<div class="vol-tile" data-tile="sonos" data-offline="false">
+  <header>
+    <span class="icon"><Icon name="music" size={22} /></span>
+    <span class="label">Speaker</span>
+    <span class="pct" data-display="pct">--%</span>
+  </header>
+  <input type="range" min="0" max="100" value="0" step="1" data-action="volume" aria-label="Volume" />
+</div>
+
+<style>
+  .vol-tile {
+    grid-column: span 2;
+    background: var(--bg-tile);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-tile);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    transition: opacity 0.18s ease;
+  }
+  .vol-tile[data-offline="true"] { opacity: 0.45; pointer-events: none; }
+  .vol-tile header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .vol-tile .icon { color: var(--accent-warm); }
+  .vol-tile .label {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .vol-tile .pct {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+  }
+  .vol-tile input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--bg-base);
+    border-radius: 999px;
+  }
+  .vol-tile input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent-warm);
+    border: none;
+  }
+  .vol-tile input[type="range"]::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent-warm);
+    border: none;
+  }
+</style>

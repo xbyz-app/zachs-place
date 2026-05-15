@@ -1,0 +1,32 @@
+---
+import TVBarsTile from "./TVBarsTile.astro";
+import VolumeTile from "./VolumeTile.astro";
+import ToggleTile from "./ToggleTile.astro";
+---
+<div class="controls-grid" id="controls-grid">
+  <TVBarsTile />
+  <VolumeTile />
+  <ToggleTile id="live_nudes" entity="live_nudes" label="Live Nudes" icon="lightbulb" />
+  <ToggleTile id="lava_lamp"   entity="lava_lamp"  label="Lava Lamp"  icon="lightbulb" />
+</div>
+<p class="offline-banner" id="offline-banner" hidden>
+  Controls offline — try again in a minute, or make sure you're on Emmi Midtown WiFi.
+</p>
+
+<style>
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+  .offline-banner {
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-tile);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-tile);
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    text-align: center;
+  }
+</style>

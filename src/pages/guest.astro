@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import Controls from "../components/Controls.astro";
 import Manual from "../components/Manual.astro";
 ---
 <BaseLayout title="Zach's Place">
@@ -11,9 +12,7 @@ import Manual from "../components/Manual.astro";
 
     <section class="controls" aria-label="Your room">
       <h2 class="section-title">Your room</h2>
-      <div class="controls-grid" id="controls-grid">
-        <p class="placeholder">Controls coming next…</p>
-      </div>
+      <Controls />
     </section>
 
     <section class="manual" aria-label="House manual">

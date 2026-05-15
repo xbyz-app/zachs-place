@@ -1,0 +1,117 @@
+---
+import Icon from "./Icon.astro";
+const COLORS: Array<{ name: string; rgb: [number, number, number] }> = [
+  { name: "Warm white", rgb: [255, 200, 140] },
+  { name: "Cool white", rgb: [220, 230, 255] },
+  { name: "Red",        rgb: [255, 60, 60] },
+  { name: "Blue",       rgb: [60, 120, 255] },
+  { name: "Purple",     rgb: [180, 80, 255] }
+];
+---
+<div class="tv-tile" data-tile="tv_bars" data-offline="false">
+  <header>
+    <span class="icon"><Icon name="lightbulb" size={22} /></span>
+    <span class="label">TV Bars</span>
+    <button class="power" data-action="toggle" aria-pressed="false" aria-label="Toggle">
+      <span class="power-dot"></span>
+    </button>
+  </header>
+  <input type="range" min="0" max="255" value="0" step="5" data-action="brightness" aria-label="Brightness" />
+  <div class="colors" role="group" aria-label="Color">
+    {COLORS.map((c) => (
+      <button
+        type="button"
+        class="color-dot"
+        data-action="color"
+        data-rgb={`${c.rgb[0]},${c.rgb[1]},${c.rgb[2]}`}
+        title={c.name}
+        aria-label={c.name}
+        style={`background: rgb(${c.rgb[0]}, ${c.rgb[1]}, ${c.rgb[2]});`}
+      ></button>
+    ))}
+  </div>
+</div>
+
+<style>
+  .tv-tile {
+    grid-column: span 2;
+    background: var(--bg-tile);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-tile);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    transition: opacity 0.18s ease;
+  }
+  .tv-tile[data-offline="true"] { opacity: 0.45; pointer-events: none; }
+  .tv-tile header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .tv-tile .icon { color: var(--text-muted); }
+  .tv-tile[data-on="true"] .icon { color: var(--accent-warm); }
+  .tv-tile .label {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .tv-tile .power {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-subtle);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .tv-tile .power-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+  .tv-tile[data-on="true"] .power-dot {
+    background: var(--accent-warm);
+    box-shadow: 0 0 8px var(--accent-warm-glow);
+  }
+
+  .tv-tile input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--bg-base);
+    border-radius: 999px;
+    outline: none;
+  }
+  .tv-tile input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent-warm);
+    border: none;
+    cursor: pointer;
+  }
+  .tv-tile input[type="range"]::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent-warm);
+    border: none;
+    cursor: pointer;
+  }
+
+  .tv-tile .colors {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: space-between;
+  }
+  .tv-tile .color-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: border-color 0.18s ease, transform 0.18s ease;
+  }
+  .tv-tile .color-dot:hover { transform: scale(1.06); }
+  .tv-tile .color-dot[aria-pressed="true"] {
+    border-color: var(--accent-warm);
+  }
+</style>
