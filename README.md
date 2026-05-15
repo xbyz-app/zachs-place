@@ -1,6 +1,6 @@
 # zachs-place
 
-Guest portal at `lab.xbyz.fun/guest` — house manual + Office/Guest-Bath controls for visitors at Zach's place.
+Guest portal at `guest.xbyz.fun/guest` — house manual + Office/Guest-Bath controls for visitors at Zach's place.
 
 ## Local dev
 
