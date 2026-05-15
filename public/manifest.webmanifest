@@ -1,0 +1,16 @@
+{
+  "name": "Zach's Place",
+  "short_name": "Zach's",
+  "description": "Guest portal for Zach's apartment — controls + house manual.",
+  "start_url": "/guest",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1410",
+  "theme_color": "#1a1410",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

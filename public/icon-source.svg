@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1a1410"/>
+  <path d="M256 88 L408 220 L408 416 L96 416 L96 220 Z" fill="none" stroke="#e8a05c" stroke-width="22" stroke-linejoin="round"/>
+  <text x="256" y="328" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="200" font-weight="700" fill="#f5e6d3">Z</text>
+</svg>
