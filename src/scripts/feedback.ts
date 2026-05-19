@@ -1,6 +1,8 @@
 // Client-side form handling for both feedback surfaces.
-// Forms post to "/" with URL-encoded bodies — Netlify Forms detects submissions
-// by the form-name field, not by the path.
+// Forms post to the current page path with URL-encoded bodies — Netlify Forms
+// detects submissions by the form-name field, not by the path. We avoid POSTing
+// to "/" because netlify.toml has a `/` → `/guest` 302 redirect that strips
+// the POST body before Netlify Forms ever sees it.
 
 export function faceEmojiToValue(emoji: string): string | null {
   const map: Record<string, string> = {
@@ -23,7 +25,7 @@ function encode(data: FormData): string {
 
 async function submit(form: HTMLFormElement): Promise<void> {
   const data = new FormData(form);
-  const res = await fetch("/", {
+  const res = await fetch(window.location.pathname, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: encode(data),
