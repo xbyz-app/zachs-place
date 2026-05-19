@@ -1,0 +1,202 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+// Matrix rows — keep field names in snake_case so they read cleanly in Netlify email
+const ROWS: Array<{ name: string; icon: string; label: string }> = [
+  { name: "getting_in", icon: "🔑", label: "Getting in + finding stuff" },
+  { name: "wifi",       icon: "📶", label: "WiFi" },
+  { name: "bed",        icon: "🛏️", label: "Bed + sleep" },
+  { name: "shower",     icon: "🚿", label: "Shower / bathroom" },
+  { name: "lights",     icon: "💡", label: "Lights" },
+  { name: "sonos",      icon: "🔊", label: "Sonos / music" },
+  { name: "coffee",     icon: "☕", label: "Coffee / kitchen" },
+  { name: "building",   icon: "🏢", label: "Building (gym, lobby, etc.)" },
+];
+
+const PILLS: Array<{ value: string; symbol: string; aria: string }> = [
+  { value: "yes",   symbol: "✅", aria: "yes" },
+  { value: "extra", symbol: "🌟", aria: "extra well" },
+  { value: "nope",  symbol: "👎", aria: "nope" },
+  { value: "na",    symbol: "—",  aria: "not applicable" },
+];
+---
+<BaseLayout title="How was it? — Zach's Place">
+  <main class="page">
+    <h1>How was it?</h1>
+    <p class="lede">Tap one per row. Takes about 30 seconds.</p>
+
+    <form
+      name="guest-feedback"
+      method="POST"
+      action="/feedback-thanks"
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+      class="survey"
+      data-feedback-form
+    >
+      <input type="hidden" name="form-name" value="guest-feedback" />
+      <p class="hp" aria-hidden="true"><label>Don't fill this out: <input name="bot-field" /></label></p>
+
+      <section class="matrix">
+        <h2 class="block-label">Did these work?</h2>
+        <p class="legend">
+          <span>✅ yes</span>
+          <span>🌟 extra well</span>
+          <span>👎 nope</span>
+          <span>— n/a</span>
+        </p>
+
+        {ROWS.map(({ name, icon, label }) => (
+          <fieldset class="row" role="radiogroup" aria-label={label}>
+            <legend class="row-label"><span class="row-icon" aria-hidden="true">{icon}</span>{label}</legend>
+            <div class="pills">
+              {PILLS.map(({ value, symbol, aria }) => (
+                <label class={`pill${value === "extra" ? " pill-star" : ""}`}>
+                  <input type="radio" name={name} value={value} />
+                  <span aria-hidden="true">{symbol}</span>
+                  <span class="visually-hidden">{aria}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </section>
+
+      <section class="block">
+        <h2 class="block-label">Anything weird, missing, or worth a heads-up?</h2>
+        <textarea name="notes" rows={3} placeholder="optional"></textarea>
+      </section>
+
+      <section class="block">
+        <h2 class="block-label">From</h2>
+        <input type="text" name="from" placeholder="your name, if you want" />
+      </section>
+
+      <p class="error" data-feedback-error hidden>Couldn't send — try again?</p>
+      <button type="submit" class="send">Send to Zach</button>
+
+      <p class="back"><a href="/guest">← back to portal</a></p>
+    </form>
+  </main>
+
+  <script>
+    import "../scripts/feedback.ts";
+  </script>
+
+  <style>
+    .page {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: var(--space-6) var(--space-4) var(--space-10);
+      color: var(--text-primary);
+    }
+    h1 { margin: 0 0 var(--space-1); font-size: 28px; line-height: 1.2; }
+    .lede { margin: 0 0 var(--space-5); color: var(--text-secondary); font-size: 14px; }
+
+    .survey { display: flex; flex-direction: column; gap: var(--space-3); }
+    .hp { position: absolute; left: -9999px; }
+
+    .block-label {
+      margin: 0 0 var(--space-2);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+    }
+
+    .matrix {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      padding: var(--space-4);
+    }
+    .legend {
+      display: flex; gap: var(--space-3); flex-wrap: wrap;
+      margin: 0 0 var(--space-2);
+      font-size: 10.5px; color: var(--text-muted);
+      justify-content: flex-end;
+    }
+    .row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: var(--space-2) 0;
+      border: 0; margin: 0;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .row:first-of-type { border-top: 0; }
+    .row-label {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-size: 14px; color: var(--text-primary);
+      padding: 0;
+    }
+    .row-icon { font-size: 18px; width: 22px; text-align: center; }
+    .pills { display: flex; gap: var(--space-1); }
+    .pill {
+      width: 32px; height: 32px;
+      background: var(--bg-pill);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-chip);
+      display: grid; place-items: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    .pill input { position: absolute; opacity: 0; pointer-events: none; }
+    .pill:has(input:checked) {
+      background: var(--accent-warm-glow);
+      border-color: var(--accent-warm);
+      transform: scale(1.08);
+    }
+    .pill-star:has(input:checked) {
+      background: var(--accent-star-glow);
+      border-color: var(--accent-star);
+    }
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    .block {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      padding: var(--space-4);
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--bg-pill);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-tile);
+      padding: var(--space-3);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      box-sizing: border-box;
+      resize: vertical;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: 1px solid var(--accent-warm);
+    }
+
+    .error {
+      color: var(--accent-warm);
+      margin: 0;
+      font-size: 13px;
+      text-align: center;
+    }
+    .send {
+      display: block;
+      width: 100%;
+      padding: var(--space-4);
+      background: var(--accent-warm);
+      color: var(--bg-base);
+      border: 0;
+      border-radius: var(--radius-tile);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .back { text-align: center; margin: var(--space-2) 0 0; font-size: 13px; }
+    .back a { color: var(--text-secondary); }
+  </style>
+</BaseLayout>

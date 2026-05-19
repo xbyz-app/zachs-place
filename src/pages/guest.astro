@@ -3,6 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Controls from "../components/Controls.astro";
 import Manual from "../components/Manual.astro";
 import InstallHint from "../components/InstallHint.astro";
+import Feedback from "../components/Feedback.astro";
 ---
 <BaseLayout title="Zach's Place">
   <InstallHint />
@@ -21,10 +22,13 @@ import InstallHint from "../components/InstallHint.astro";
       <h2 class="section-title">House manual</h2>
       <Manual />
     </section>
+
+    <Feedback />
   </main>
 
   <script>
     import "../scripts/controls.ts";
+    import "../scripts/feedback.ts";
   </script>
 
   <style>
@@ -64,10 +68,6 @@ import InstallHint from "../components/InstallHint.astro";
     }
     .controls, .manual {
       margin-top: var(--space-8);
-    }
-    .placeholder {
-      color: var(--text-muted);
-      font-style: italic;
     }
   </style>
 </BaseLayout>

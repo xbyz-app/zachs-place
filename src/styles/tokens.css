@@ -29,4 +29,8 @@
   --space-10: 40px;
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+
+  --accent-star: #ffc850;
+  --accent-star-glow: rgba(255, 200, 80, 0.20);
+  --bg-pill: #2a221c;
 }
