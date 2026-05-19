@@ -1,0 +1,145 @@
+---
+// Renders the in-portal "How's your stay?" vibe tile.
+// face value mapping must stay in sync with src/scripts/feedback.ts faceEmojiToValue()
+const FACES: Array<{ emoji: string; value: string; label: string }> = [
+  { emoji: "😴", value: "sleepy",     label: "Sleepy" },
+  { emoji: "🙂", value: "smile",      label: "Fine" },
+  { emoji: "😊", value: "grin",       label: "Good" },
+  { emoji: "😍", value: "heart",      label: "Great" },
+  { emoji: "🤯", value: "mindblown",  label: "Amazing" },
+];
+---
+<section class="feedback" aria-label="Feedback">
+  <h2 class="section-title">Feedback</h2>
+
+  <div class="vibe-card" data-feedback-tile>
+    <h3 class="vibe-title">How's your stay?</h3>
+    <p class="vibe-sub">Tap a face. Or open the full thing.</p>
+
+    <form
+      name="guest-vibe"
+      method="POST"
+      action="/feedback-thanks"
+      data-netlify="true"
+      netlify-honeypot="bot-field"
+      class="face-form"
+      data-feedback-form
+    >
+      <input type="hidden" name="form-name" value="guest-vibe" />
+      <p class="hp" aria-hidden="true"><label>Don't fill this out: <input name="bot-field" /></label></p>
+
+      <div class="face-row" role="radiogroup" aria-label="Pick a vibe">
+        {FACES.map(({ emoji, value, label }) => (
+          <label class="face">
+            <input type="radio" name="face" value={value} required />
+            <span class="face-emoji" aria-hidden="true">{emoji}</span>
+            <span class="visually-hidden">{label}</span>
+          </label>
+        ))}
+      </div>
+
+      <noscript>
+        <button type="submit" class="noscript-submit">Send</button>
+      </noscript>
+    </form>
+
+    <div class="divider"><span>or</span></div>
+
+    <a class="more-link" href="/feedback">Tell Zach more <strong>→</strong></a>
+  </div>
+</section>
+
+<style>
+  .feedback { margin-top: var(--space-8); }
+  .section-title {
+    margin: 0 0 var(--space-4);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+  }
+  .vibe-card {
+    background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-tile) 100%);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    padding: var(--space-5) var(--space-4) var(--space-4);
+    color: var(--text-primary);
+  }
+  .vibe-title {
+    margin: 0 0 var(--space-1);
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .vibe-sub {
+    margin: 0 0 var(--space-4);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .face-form { margin: 0; }
+  .face-row {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+  }
+  .face {
+    flex: 1;
+    aspect-ratio: 1 / 1;
+    max-width: 56px;
+    background: var(--bg-pill);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .face:has(input:checked) {
+    background: var(--accent-warm-glow);
+    border-color: var(--accent-warm);
+    transform: scale(1.06);
+  }
+  .face input { position: absolute; opacity: 0; pointer-events: none; }
+  .face-emoji { font-size: 26px; line-height: 1; }
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+  .hp { position: absolute; left: -9999px; }
+  .noscript-submit {
+    display: block; width: 100%; padding: var(--space-3);
+    margin-top: var(--space-2);
+    background: var(--accent-warm); color: var(--bg-base);
+    border: 0; border-radius: var(--radius-tile);
+    font-size: 14px; font-weight: 600;
+  }
+  .divider {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: var(--space-2) 0;
+  }
+  .divider span { padding: 0 var(--space-2); }
+  .more-link {
+    display: block;
+    text-align: center;
+    padding: var(--space-3);
+    background: var(--bg-pill);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-tile);
+    color: var(--text-primary);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .more-link strong { color: var(--accent-warm); }
+  .thanks {
+    text-align: center;
+    padding: var(--space-6) var(--space-4);
+  }
+  .thanks-text { margin: 0; font-size: 15px; color: var(--text-primary); }
+</style>
