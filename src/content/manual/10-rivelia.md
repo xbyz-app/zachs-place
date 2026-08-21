@@ -1,7 +1,7 @@
 ---
 title: Rivelia (coffee)
 icon: coffee
-order: 8
+order: 10
 ---
 
 The **DeLonghi Rivelia** on the counter does basically anything. Two **bean hoppers** swap on top — try both.
@@ -14,4 +14,4 @@ The **DeLonghi Rivelia** on the counter does basically anything. Two **bean hopp
 
 **Tea & hot water:** the machine makes plain hot water. Use the hot water spout (in the same slot the milk carafe goes into).
 
-> **Yellow error?** Give the drip tray a small nudge to the right.
+If it asks you to empty the grounds container, it's the drawer at the front — tip it out and push it back in until it clicks.

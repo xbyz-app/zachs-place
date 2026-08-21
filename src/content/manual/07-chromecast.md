@@ -1,7 +1,7 @@
 ---
 title: Chromecast
 icon: cast
-order: 4
+order: 7
 ---
 
 - **Input:** HDMI 2

@@ -31,6 +31,30 @@ async function api<T = unknown>(path: string, body?: unknown): Promise<T> {
   return res.json();
 }
 
+/** How the Speaker tile should render for a given HA volume_level.
+ *
+ * `null` means the office Sonos is unavailable to HA — the speaker is off the
+ * network, not at zero volume. That distinction is the whole reason this
+ * exists: `/api/volume` posts to HA, HA no-ops a write to an unavailable
+ * entity, and the function returns `{"ok":true}` regardless. So the old
+ * "skip rendering when null" branch left a live-looking slider parked at 0%
+ * that a guest could drag all evening with no sound and no error. Marking the
+ * tile offline is what makes the failure visible; the CSS on
+ * `[data-offline="true"]` dims it and takes pointer events away.
+ *
+ * Exported for the test — controls.ts wires the DOM on import, so this is the
+ * seam that can be asserted without a browser.
+ */
+export function speakerTile(volume: number | null): {
+  offline: boolean;
+  pct: number;
+  display: string;
+} {
+  if (volume === null) return { offline: true, pct: 0, display: "Offline" };
+  const pct = Math.round(volume * 100);
+  return { offline: false, pct, display: `${pct}%` };
+}
+
 function setOffline(offline: boolean) {
   document.querySelectorAll<HTMLElement>("[data-tile]").forEach((el) => {
     el.dataset.offline = String(offline);
@@ -74,12 +98,13 @@ function renderState(state: State) {
   }
 
   const vol = document.querySelector<HTMLElement>('[data-tile="sonos"]');
-  if (vol && state.sonos.volume_level !== null) {
-    const pct = Math.round(state.sonos.volume_level * 100);
+  if (vol) {
+    const speaker = speakerTile(state.sonos.volume_level);
+    vol.dataset.offline = String(speaker.offline);
     const slider = vol.querySelector<HTMLInputElement>('[data-action="volume"]');
-    if (slider) slider.value = String(pct);
+    if (slider) slider.value = String(speaker.pct);
     const display = vol.querySelector<HTMLElement>('[data-display="pct"]');
-    if (display) display.textContent = `${pct}%`;
+    if (display) display.textContent = speaker.display;
   }
 
   (["live_nudes", "lava_lamp"] as const).forEach((key) => {
@@ -213,16 +238,22 @@ function wireIGLogoTile() {
   });
 }
 
-loadInitialState();
-wireToggleTiles();
-wireTVTile();
-wireIGLogoTile();
-wireVolumeTile();
+// Browser entry point. Guarded so the module can be imported for its pure
+// helpers (speakerTile) under vitest, whose default environment is node and
+// has no document — without the guard, importing this file to test one
+// function runs the whole DOM wiring and throws.
+if (typeof document !== "undefined") {
+  loadInitialState();
+  wireToggleTiles();
+  wireTVTile();
+  wireIGLogoTile();
+  wireVolumeTile();
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
-      console.warn("SW registration failed", err);
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.warn("SW registration failed", err);
+      });
     });
-  });
+  }
 }

@@ -1,7 +1,7 @@
 ---
 title: Getting around Midtown
 icon: map
-order: 11
+order: 13
 ---
 
 - **Grocery:** Publix on Piedmont, Whole Foods on Ponce

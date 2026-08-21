@@ -1,7 +1,7 @@
 ---
 title: WiFi
 icon: wifi
-order: 3
+order: 5
 ---
 
 - **Network:** Emmi Midtown

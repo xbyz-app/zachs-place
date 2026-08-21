@@ -1,7 +1,7 @@
 ---
 title: Tovala (countertop oven)
 icon: microwave
-order: 9
+order: 11
 ---
 
 The black countertop oven is a **Tovala Smart Oven** — steam + bake + broil + toast.

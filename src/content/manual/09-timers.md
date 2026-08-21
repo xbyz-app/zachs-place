@@ -1,7 +1,7 @@
 ---
 title: Timers
 icon: timer
-order: 7
+order: 9
 ---
 
 Ask any Google Home Hub:

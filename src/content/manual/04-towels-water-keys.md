@@ -1,7 +1,7 @@
 ---
 title: Towels · Water · Keys
 icon: shower-head
-order: 2
+order: 4
 ---
 
 **Towels** — under the sink in the bathroom.
