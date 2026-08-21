@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Guest manual editor</title>
+<style>
+  :root {
+    --bg-base:#1a1410; --bg-surface:#221a14; --bg-tile:#2a201a; --bg-tile-active:#3a2a1f;
+    --border-subtle:rgba(255,220,180,.08); --border-active:rgba(255,180,90,.4);
+    --text-primary:#f5e6d3; --text-secondary:#b8a48d; --text-muted:#7a6a58;
+    --accent-warm:#e8a05c; --danger:#d97066;
+    --font-sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body {
+    background:var(--bg-base); color:var(--text-primary); font-family:var(--font-sans);
+    display:grid; grid-template-rows:auto 1fr; overflow:hidden;
+  }
+  header {
+    display:flex; align-items:center; gap:16px; padding:12px 20px;
+    border-bottom:1px solid var(--border-subtle); background:var(--bg-surface);
+  }
+  header h1 { font-size:15px; margin:0; font-weight:600; letter-spacing:.2px; }
+  header .path { font-size:12px; color:var(--text-muted); font-family:ui-monospace,Menlo,monospace; }
+  header .spacer { flex:1; }
+  .status { font-size:12.5px; color:var(--text-muted); min-height:16px; }
+  .status.ok { color:var(--accent-warm); }
+  .status.err { color:var(--danger); }
+
+  main { display:grid; grid-template-columns:270px 1fr 1fr; min-height:0; }
+  aside { border-right:1px solid var(--border-subtle); background:var(--bg-surface); overflow-y:auto; padding:10px; }
+  .sec {
+    display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:10px;
+    cursor:pointer; font-size:13.5px; color:var(--text-secondary); border:1px solid transparent;
+  }
+  .sec:hover { background:var(--bg-tile); }
+  .sec.active { background:var(--bg-tile-active); color:var(--text-primary); border-color:var(--border-active); }
+  .sec .num { font-size:11px; color:var(--text-muted); font-family:ui-monospace,Menlo,monospace; width:18px; }
+  .sec .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sec .dot { width:6px; height:6px; border-radius:50%; background:var(--accent-warm); opacity:0; }
+  .sec.dirty .dot { opacity:1; }
+  .sec .arrows { display:flex; flex-direction:column; opacity:0; }
+  .sec:hover .arrows { opacity:1; }
+  .sec .arrows button { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:9px; line-height:9px; padding:1px 3px; }
+  .sec .arrows button:hover { color:var(--accent-warm); }
+
+  section.editor { display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--border-subtle); }
+  .meta { display:flex; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border-subtle); align-items:flex-end; flex-wrap:wrap; }
+  .field { display:flex; flex-direction:column; gap:4px; }
+  .field label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; }
+  .field input, .field select {
+    background:var(--bg-tile); border:1px solid var(--border-subtle); color:var(--text-primary);
+    border-radius:8px; padding:7px 9px; font-size:13.5px; font-family:inherit;
+  }
+  .field.title { flex:1; min-width:160px; }
+  .field.title input { width:100%; }
+  .field input:focus, .field select:focus, textarea:focus { outline:none; border-color:var(--border-active); }
+  textarea {
+    flex:1; background:var(--bg-base); border:none; color:var(--text-primary); padding:16px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13.5px; line-height:1.65; resize:none;
+  }
+  .actions { display:flex; gap:8px; padding:10px 16px; border-top:1px solid var(--border-subtle); background:var(--bg-surface); }
+  button.btn {
+    background:var(--bg-tile); border:1px solid var(--border-subtle); color:var(--text-primary);
+    border-radius:10px; padding:8px 14px; font-size:13px; font-family:inherit; cursor:pointer;
+  }
+  button.btn:hover { background:var(--bg-tile-active); }
+  button.btn.primary { background:var(--accent-warm); border-color:var(--accent-warm); color:#1a1410; font-weight:600; }
+  button.btn.primary:disabled { opacity:.4; cursor:default; }
+  button.btn.danger { color:var(--danger); }
+  .actions .spacer { flex:1; }
+
+  section.preview { overflow-y:auto; padding:22px 24px; background:var(--bg-base); min-width:0; }
+  .preview-frame { max-width:520px; margin:0 auto; }
+  .preview-card { background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:16px; overflow:hidden; }
+  .preview-head { display:flex; align-items:center; gap:12px; padding:16px; }
+  .preview-head .ic { color:var(--accent-warm); display:inline-flex; }
+  .preview-head .t { flex:1; font-weight:600; font-size:15px; }
+  .preview-body { padding:0 16px 16px; color:var(--text-secondary); font-size:14.5px; line-height:1.55; }
+  .preview-body strong { color:var(--text-primary); }
+  .preview-body code { background:var(--bg-tile); padding:2px 6px; border-radius:4px; font-size:13px; }
+  .preview-body blockquote { border-left:2px solid var(--accent-warm); padding-left:12px; margin:12px 0; }
+  .preview-body ul, .preview-body ol { margin:8px 0; padding-left:20px; }
+  .preview-body a { color:var(--accent-warm); }
+  .preview-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin:0 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Guest manual</h1>
+  <span class="path">src/content/manual/</span>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+</header>
+<main>
+  <aside id="list"></aside>
+  <section class="editor">
+    <div class="meta">
+      <div class="field title"><label for="f-title">Title</label><input id="f-title" /></div>
+      <div class="field"><label for="f-icon">Icon</label><select id="f-icon"></select></div>
+      <div class="field"><label for="f-file">File</label><input id="f-file" disabled style="width:150px" /></div>
+    </div>
+    <textarea id="f-body" spellcheck="true" placeholder="Markdown body…"></textarea>
+    <div class="actions">
+      <button class="btn primary" id="save" disabled>Save all now</button>
+      <span style="font-size:12px;color:var(--text-muted);align-self:center">Autosaves every section as you type</span>
+      <button class="btn" id="revert">Revert</button>
+      <span class="spacer"></span>
+      <button class="btn" id="add">+ New section</button>
+      <button class="btn danger" id="del">Delete</button>
+    </div>
+  </section>
+  <section class="preview">
+    <div class="preview-frame">
+      <p class="preview-label">How it looks on guest.xbyz.fun/guest</p>
+      <div class="preview-card">
+        <div class="preview-head"><span class="ic" id="p-icon"></span><span class="t" id="p-title"></span></div>
+        <div class="preview-body" id="p-body"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+let sections = [], current = null, icons = {}, dirty = new Map();
+
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status");
+function say(msg, kind) {
+  statusEl.textContent = msg;
+  statusEl.className = "status" + (kind ? " " + kind : "");
+  if (kind === "ok") setTimeout(() => { if (statusEl.textContent === msg) statusEl.textContent = ""; }, 2500);
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function svgFor(name, size) {
+  const p = icons[name] || "";
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + (size||18) + '" height="' + (size||18) +
+    '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+}
+
+// --- tiny markdown renderer (matches what the Astro page renders) ---
+function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/_([^_\n]+)_/g, "<em>$1</em>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function md(src) {
+  const out = []; const lines = src.split("\n"); let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    let m;
+    if ((m = line.match(/^(#{1,6})\s+(.*)$/))) { const l = Math.min(m[1].length + 2, 6); out.push("<h"+l+">"+inline(m[2])+"</h"+l+">"); i++; continue; }
+    if (/^>\s?/.test(line)) {
+      const buf = []; while (i < lines.length && /^>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, "")); i++; }
+      out.push("<blockquote>" + md(buf.join("\n")) + "</blockquote>"); continue;
+    }
+    if (/^\s*([-*+])\s+/.test(line)) {
+      const items = []; while (i < lines.length && /^\s*([-*+])\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*([-*+])\s+/, "")); i++; }
+      out.push("<ul>" + items.map(t => "<li>" + inline(t) + "</li>").join("") + "</ul>"); continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items = []; while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) { items.push(lines[i].replace(/^\s*\d+\.\s+/, "")); i++; }
+      out.push("<ol>" + items.map(t => "<li>" + inline(t) + "</li>").join("") + "</ol>"); continue;
+    }
+    const para = []; while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|>|\s*[-*+]\s|\s*\d+\.\s)/.test(lines[i])) { para.push(lines[i]); i++; }
+    out.push("<p>" + inline(para.join(" ")) + "</p>");
+  }
+  return out.join("");
+}
+
+function draft(file) {
+  return dirty.get(file) || null;
+}
+function view(sec) {
+  const d = draft(sec.file);
+  return d ? { ...sec, ...d } : sec;
+}
+function isDirty(sec) {
+  const d = draft(sec.file); if (!d) return false;
+  return d.title !== sec.title || d.icon !== sec.icon || d.body !== sec.body;
+}
+
+function renderList() {
+  const list = $("list"); list.innerHTML = "";
+  sections.forEach((sec, idx) => {
+    const v = view(sec);
+    const el = document.createElement("div");
+    el.className = "sec" + (current === sec.file ? " active" : "") + (isDirty(sec) ? " dirty" : "");
+    el.innerHTML = '<span class="num">' + sec.order + '</span><span class="dot"></span><span class="name"></span>' +
+      '<span class="arrows"><button data-up>▲</button><button data-down>▼</button></span>';
+    el.querySelector(".name").textContent = v.title;
+    el.onclick = () => select(sec.file);
+    el.querySelector("[data-up]").onclick = (e) => { e.stopPropagation(); move(idx, -1); };
+    el.querySelector("[data-down]").onclick = (e) => { e.stopPropagation(); move(idx, 1); };
+    list.appendChild(el);
+  });
+}
+
+function renderEditor() {
+  const sec = sections.find(s => s.file === current);
+  if (!sec) { $("f-title").value = ""; $("f-body").value = ""; $("f-file").value = ""; renderPreview(); return; }
+  const v = view(sec);
+  $("f-title").value = v.title;
+  $("f-icon").value = v.icon;
+  $("f-file").value = sec.file;
+  $("f-body").value = v.body;
+  $("save").disabled = !isDirty(sec);
+  renderPreview();
+}
+
+function renderPreview() {
+  $("p-title").textContent = $("f-title").value;
+  $("p-icon").innerHTML = svgFor($("f-icon").value, 18);
+  $("p-body").innerHTML = md($("f-body").value);
+}
+
+async function select(file) {
+  await saveAll();
+  current = file; renderList(); renderEditor();
+}
+
+let saveTimer = null;
+
+function touch() {
+  const sec = sections.find(s => s.file === current); if (!sec) return;
+  dirty.set(sec.file, { title: $("f-title").value, icon: $("f-icon").value, body: $("f-body").value });
+  $("save").disabled = !isDirty(sec);
+  renderList(); renderPreview();
+  clearTimeout(saveTimer);
+  if (isDirty(sec)) { say("Unsaved changes\u2026"); saveTimer = setTimeout(saveAll, 700); }
+}
+
+async function saveOne(file) {
+  const sec = sections.find(s => s.file === file);
+  if (!sec || !isDirty(sec)) return true;
+  const d = dirty.get(file);
+  try {
+    await api("/api/sections/" + encodeURIComponent(file), {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: d.title, icon: d.icon, order: sec.order, body: d.body })
+    });
+    Object.assign(sec, d);
+    dirty.delete(file);
+    return true;
+  } catch (e) { say(e.message, "err"); return false; }
+}
+
+// Saves EVERY dirty section, not just the visible one.
+async function saveAll() {
+  clearTimeout(saveTimer);
+  const files = [...dirty.keys()];
+  if (!files.length) return;
+  let n = 0;
+  for (const f of files) if (await saveOne(f)) n++;
+  if (n) say("Saved " + n + " section" + (n === 1 ? "" : "s"), "ok");
+  renderList(); renderEditor();
+}
+
+async function move(idx, delta) {
+  const target = idx + delta;
+  if (target < 0 || target >= sections.length) return;
+  await saveAll();
+  const order = sections.map(s => s.file);
+  const [f] = order.splice(idx, 1); order.splice(target, 0, f);
+  try {
+    const res = await api("/api/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order }) });
+    sections = res.sections;
+    current = res.sections.find(s => s.title === (sections[target] || {}).title)?.file || order[target];
+    say("Reordered", "ok");
+    renderList(); renderEditor();
+  } catch (e) { say(e.message, "err"); }
+}
+
+async function addSection() {
+  const title = prompt("Title for the new section?");
+  if (!title) return;
+  try {
+    const res = await api("/api/sections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
+    sections = res.sections; current = res.file;
+    say("Created " + res.file, "ok");
+    renderList(); renderEditor();
+  } catch (e) { say(e.message, "err"); }
+}
+
+async function del() {
+  const sec = sections.find(s => s.file === current); if (!sec) return;
+  if (!confirm("Delete " + sec.file + "? This removes the file from the repo.")) return;
+  try {
+    const res = await api("/api/sections/" + encodeURIComponent(sec.file), { method: "DELETE" });
+    dirty.delete(sec.file);
+    sections = res.sections; current = sections[0]?.file || null;
+    say("Deleted " + sec.file, "ok");
+    renderList(); renderEditor();
+  } catch (e) { say(e.message, "err"); }
+}
+
+$("f-title").addEventListener("input", touch);
+$("f-body").addEventListener("input", touch);
+$("f-icon").addEventListener("change", touch);
+$("save").onclick = saveAll;
+$("revert").onclick = () => { const sec = sections.find(s => s.file === current); if (sec) { dirty.delete(sec.file); renderList(); renderEditor(); } };
+$("add").onclick = addSection;
+$("del").onclick = del;
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); saveAll(); }
+});
+window.addEventListener("beforeunload", (e) => { if (dirty.size) { e.preventDefault(); e.returnValue = ""; } });
+
+(async function init() {
+  try {
+    const data = await api("/api/sections");
+    sections = data.sections; icons = data.icons;
+    $("f-icon").innerHTML = Object.keys(icons).filter(n => n !== "chevron").map(n => '<option value="' + n + '">' + n + "</option>").join("");
+    current = sections[0]?.file || null;
+    renderList(); renderEditor();
+  } catch (e) { say(e.message, "err"); }
+})();
+</script>
+</body>
+</html>

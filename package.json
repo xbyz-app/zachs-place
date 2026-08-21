@@ -9,7 +9,8 @@
     "preview": "astro preview",
     "netlify-dev": "netlify dev",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "manual": "node tools/manual-editor.mjs"
   },
   "dependencies": {
     "astro": "^4.16.0"
