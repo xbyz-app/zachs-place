@@ -18,6 +18,43 @@ Auto-deploys from `main` on Netlify. Env vars required:
 - `HA_BASE_URL` — Nabu Cloud URL (e.g. `https://abc123.ui.nabu.casa`)
 - `HA_GUEST_TOKEN` — LLAT minted from the HA Guest user
 
+## Editing the house manual
+
+Each section of the manual is one markdown file in `src/content/manual/`, with
+`title` / `icon` / `order` frontmatter. `order` drives the accordion sequence —
+the filename prefix is cosmetic, so keep the two in step and **never let two
+sections share an `order`**, or their relative position is undefined.
+
+`icon` must name a key in `src/components/Icon.astro`. An unknown name renders
+an empty `<svg>` rather than failing the build, so check the page after adding
+one.
+
+Two ways to edit:
+
+```bash
+npm run manual     # http://localhost:4399
+```
+
+A three-pane editor — section list, markdown, live preview styled like the real
+page — that writes straight to the `.md` files. It **autosaves every edited
+section** ~700ms after you stop typing and flushes pending saves when you switch
+sections; ⌘S forces a save. Reorder with the ▲▼ arrows (renumbers both the
+`order` field and the filenames), and add or delete sections from the buttons.
+
+Point it somewhere harmless when testing it:
+
+```bash
+MANUAL_DIR=/tmp/scratch-manual PORT=4400 npm run manual
+```
+
+Or just edit the markdown files directly — nothing about the editor is required.
+
+### Guest-specific copy
+
+The hero subtitle in `src/pages/guest.astro` is sometimes personalised for whoever
+is visiting. When it is, the evergreen line is parked in a comment directly above
+it — swap it back when they leave.
+
 ## Design spec
 
 See `pat/docs/superpowers/specs/2026-05-15-guest-portal-design.md` in the `pat` repo.
