@@ -4,8 +4,8 @@ icon: shower-head
 order: 4
 ---
 
-**Towels** — under the sink in the bathroom.
+**Towels** — on your bed, with extras under the bathroom sink. The robes in the guest bathroom are clean and they're yours.
 
-**Water** — on your nightstand, plus more in the fridge. Plenty of ice in the freezer.
+**Water** — on the bathroom counter, with backup in the fridge. There is an aggressive amount of ice in the freezer.
 
-**Keys & elevator** — the keychain has the elevator and door code.
+**Keys & elevator** — the keychain has both the elevator code and the door code on it. Your DOOR app gets you into 31P and nothing else.

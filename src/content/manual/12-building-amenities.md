@@ -4,11 +4,11 @@ icon: building
 order: 12
 ---
 
-All of it is open **6am – midnight**, and all of it needs Zach with you — the building allows 2 guests per resident in the amenity spaces and **residents have to accompany their guests**. So it's a "let's go down to the pool" thing, not a "go down to the pool" thing.
+All of it is open **6 a.m. to midnight**, and all of it needs me physically with you.
 
-- **Pool** — quiet hours 10pm–midnight are enforced; the apartments wrap the deck. No glass, no pets.
-- **Athletic Club (gym)** — workout attire, wipe things down, don't slam the weights.
-- **Grills + firepits** — near the pool. Grills: set the burn timer on the side, ignite for ~3 seconds, then turn clockwise. Firepits: press the timer on the stand.
-- **West Lounge & Pool Lounge** — two TVs plus an outdoor movie screen at the pool. Remotes are at the concierge desk in exchange for your ID.
+- **Pool** — the 10 p.m. to midnight quiet hours are genuinely enforced, since the apartments wrap right around the deck. No glass, no pets.
+- **Athletic Club (the gym)** — workout attire, wipe things down, and please don't slam the weights.
+- **Grills & firepits** — both near the pool. For the grills, set the burn timer on the side, ignite for about three seconds, then turn clockwise. For the firepits, press the timer on the stand.
+- **West Lounge & Pool Lounge** — two TVs, plus an outdoor movie screen at the pool. The remotes live at the concierge desk, and they'll trade you one for your ID.
 
-**Quiet hours are 10pm building-wide**, not just at the pool.
+**Quiet hours are 10 p.m. building-wide**, not just at the pool.

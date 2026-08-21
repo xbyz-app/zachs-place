@@ -4,6 +4,6 @@ icon: door-open
 order: 1
 ---
 
-Welcome to Zach's place. Controls for your room are above; the house manual is below.
+Welcome! Your room's controls are right up top, and everything you could possibly need to know is in the drawers below.
 
-Anything that isn't in here, or anything that looks broken — text Zach.
+Fair warning: this apartment is a smart home, which means it is mostly delightful and occasionally has opinions. If anything looks broken, haunted, or simply wrong, let me know. I promise I am never tired of hearing about it.
