@@ -3505,7 +3505,7 @@ Ask Zach for the plan's monthly call quota from the api.market dashboard. Read x
 
 - [ ] **Step 3: GATE: ntfy topic**
 
-Generate `zach-guests-$(openssl rand -hex 6)`. Zach subscribes to it in the ntfy app. Send one test and read it back:
+Generate `openssl rand -hex 16` with no recognizable prefix. The topic name is the only protection ntfy gives this feed, and pushes contain page links that resolve to the home address, so it must not be guessable. Zach subscribes to it in the ntfy app. Send one test and read it back:
 ```bash
 curl -s -d "guest alerts test" -H "Title: Guest system test" https://ntfy.sh/<topic>
 curl -s "https://ntfy.sh/<topic>/json?poll=1&since=5m"
@@ -3576,7 +3576,7 @@ Watch and check each of these on the real surfaces:
 2. Within about 5 min the pre-arrival email lands in Gmail. Read the delivered email, not the logs: the address is filled in, there are no `{placeholders}`, the page link works, and the sender and reply-to are right.
 3. `GET /api/guests` shows `tracking` populated from the real AeroDataBox response: state, times, and after the gate is known, `gate` and `concourse`. If the gate/terminal format doesn't map to a concourse, add a failing test for that exact shape in `tests/server/flight.test.ts`, fix `concourseFrom`, and redeploy.
 4. On Zach's iPhone, open the page. Tap **open lyft** and **open uber**: each should open the app with the home address as destination. If Lyft doesn't prefill, try `lyft://ridetype?id=lyft&destination[latitude]=..&destination[longitude]=..` as the href. Update `lyftUrl` and its test, redeploy, and retest.
-5. At landing: the landed email arrives with the real concourse's steps and the "Guest landed" push arrives. SMS shows "skipped (sms off)".
+5. At landing: the landed email arrives with the real concourse's steps and the "Guest landed" push arrives. The rehearsal guest has `phone: null`, so the push reads "text: no phone" (not "skipped (sms off)" -- that wording is only for a guest who does have a phone number and SMS is off).
 6. Delete the rehearsal guest: `curl -s -X DELETE "https://guest.xbyz.fun/api/guests?id=<id>" -H "Authorization: Bearer $GK"`.
 
 - [ ] **Step 9: Hand Muse the contract**
