@@ -38,6 +38,19 @@ describe("buildRoute: exact routes for canonical cases", () => {
   });
 });
 
+describe("buildRoute: unlisted-airline routing (not DL, not in NORTH_AIRLINES)", () => {
+  const group2 = (input: RouteInput) => buildRoute(input).filter((s) => s.group === 2).map((s) => s.id);
+  it("XP + checked bag + rideshare, domestic concourse B: unlisted claim then cross to north", () => {
+    expect(group2({ ...base, airline: "XP", checkedBag: true, concourse: "B" })).toEqual(["escalator.unlisted-claim", "escalator.to-north"]);
+  });
+  it("unknown airline (null) + checked bag: same unlisted routing as XP", () => {
+    expect(group2({ ...base, airline: null, checkedBag: true, concourse: "B" })).toEqual(["escalator.unlisted-claim", "escalator.to-north"]);
+  });
+  it("XP + zach pickup: unlisted side, no claim/cross steps", () => {
+    expect(group2({ ...base, airline: "XP", pickup: "zach", concourse: "B" })).toEqual(["escalator.unlisted-side"]);
+  });
+});
+
 describe("buildRoute: invariants over every combination", () => {
   const airlines = ["DL", "AA", "WN", "XP", null];
   const bags = [true, false, null];

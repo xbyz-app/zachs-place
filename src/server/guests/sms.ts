@@ -16,6 +16,7 @@ export async function sendSms(msg: { to: string; body: string }): Promise<SendRe
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({ From: from, To: msg.to, Body: msg.body }).toString(),
+      signal: AbortSignal.timeout(5000),
     });
     const body = (await res.json().catch(() => ({}))) as { sid?: string; message?: string };
     if (!res.ok) return { ok: false, error: `twilio ${res.status}: ${body.message ?? ""}`.trim() };

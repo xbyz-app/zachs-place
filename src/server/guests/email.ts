@@ -3,7 +3,7 @@ export type SendResult =
   | { ok: false; skipped?: false; error: string }
   | { ok: false; skipped: true; reason: string };
 
-export async function sendEmail(msg: { to: string; subject: string; html: string; text: string }): Promise<SendResult> {
+export async function sendEmail(msg: { to: string; subject: string; html: string; text: string; idempotencyKey?: string }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.GUEST_EMAIL_FROM;
   const replyTo = process.env.ZACH_REPLY_TO;
@@ -11,8 +11,13 @@ export async function sendEmail(msg: { to: string; subject: string; html: string
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        ...(msg.idempotencyKey ? { "Idempotency-Key": msg.idempotencyKey } : {}),
+      },
       body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text, ...(replyTo ? { reply_to: replyTo } : {}) }),
+      signal: AbortSignal.timeout(5000),
     });
     const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
     if (!res.ok) return { ok: false, error: `resend ${res.status}: ${body.message ?? ""}`.trim() };

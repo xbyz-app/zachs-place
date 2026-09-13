@@ -4,14 +4,14 @@ import { normalizeAeroDataBox, fetchFlight, concourseFrom, airlineFromFlightNumb
 const ORIGINAL_FETCH = global.fetch;
 afterEach(() => { global.fetch = ORIGINAL_FETCH; delete process.env.AERODATABOX_API_KEY; });
 
-function adbx(o: { status?: string; gate?: string; terminal?: string; from?: string; country?: string; to?: string; revised?: string; runway?: string; airline?: string } = {}) {
+function adbx(o: { status?: string; gate?: string; terminal?: string; from?: string; country?: string; to?: string; revised?: string; runway?: string; airline?: string; depart?: string } = {}) {
   return {
     number: "DL 1234",
     status: o.status ?? "Expected",
     airline: { iata: o.airline ?? "DL", name: "Delta Air Lines" },
     departure: {
       airport: { iata: o.from ?? "LGA", countryCode: o.country ?? "US" },
-      scheduledTime: { utc: "2026-09-20 10:00Z", local: "2026-09-20 06:00-04:00" },
+      scheduledTime: { utc: o.depart ?? "2026-09-20 10:00Z", local: "2026-09-20 06:00-04:00" },
     },
     arrival: {
       airport: { iata: o.to ?? "ATL", countryCode: "US" },
@@ -84,6 +84,12 @@ describe("normalizeAeroDataBox", () => {
     expect(normalizeAeroDataBox([], "2026-09-20")).toBeNull();
     expect(normalizeAeroDataBox("garbage", "2026-09-20")).toBeNull();
   });
+  it("multiple legs into ATL: picks the leg whose departure date matches flightDate, else the first", () => {
+    const legA = adbx({ depart: "2026-09-19 10:00Z", gate: "A1" });
+    const legB = adbx({ depart: "2026-09-20 10:00Z", gate: "B2" });
+    expect(normalizeAeroDataBox([legA, legB], "2026-09-20")!.gate).toBe("B2");
+    expect(normalizeAeroDataBox([legA, legB], "2026-09-25")!.gate).toBe("A1");
+  });
 });
 
 describe("fetchFlight", () => {
@@ -94,7 +100,7 @@ describe("fetchFlight", () => {
     const r = await fetchFlight("DL1234", "2026-09-20");
     expect(f).toHaveBeenCalledWith(
       "https://prod.api.market/api/v1/aedbx/aerodatabox/flights/number/DL1234/2026-09-20",
-      expect.objectContaining({ headers: { "x-api-market-key": "k" } }),
+      expect.objectContaining({ headers: { "x-api-market-key": "k" }, signal: expect.any(AbortSignal) }),
     );
     expect(r).toMatchObject({ ok: true, snapshot: { concourse: "C" } });
   });
@@ -112,5 +118,7 @@ describe("fetchFlight", () => {
     expect(await fetchFlight("DL1234", "2026-09-20")).toMatchObject({ ok: false, error: expect.stringContaining("503") });
     global.fetch = vi.fn().mockRejectedValue(new Error("ECONNRESET")) as unknown as typeof fetch;
     expect(await fetchFlight("DL1234", "2026-09-20")).toMatchObject({ ok: false, error: expect.stringContaining("ECONNRESET") });
+    global.fetch = vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")) as unknown as typeof fetch;
+    expect((await fetchFlight("DL1234", "2026-09-20")).ok).toBe(false);
   });
 });

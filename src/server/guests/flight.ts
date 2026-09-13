@@ -90,7 +90,7 @@ export async function fetchFlight(number: string, date: string): Promise<FlightR
   if (!key) return { ok: false, error: "AERODATABOX_API_KEY not set" };
   const url = `https://prod.api.market/api/v1/aedbx/aerodatabox/flights/number/${encodeURIComponent(number)}/${date}`;
   try {
-    const res = await fetch(url, { headers: { "x-api-market-key": key } });
+    const res = await fetch(url, { headers: { "x-api-market-key": key }, signal: AbortSignal.timeout(4000) });
     const text = await res.text();
     if (res.status === 404 || res.status === 204 || (res.ok && !text.trim())) return { ok: true, snapshot: null };
     if (!res.ok) return { ok: false, error: `aerodatabox ${res.status}: ${text.slice(0, 200)}` };

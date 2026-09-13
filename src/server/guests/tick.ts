@@ -19,7 +19,7 @@ export interface TickDeps {
   store: GuestStore;
   counters: CounterStore;
   fetchFlight(number: string, date: string): Promise<FlightResult>;
-  sendEmail(m: { to: string; subject: string; html: string; text: string }): Promise<SendResult>;
+  sendEmail(m: { to: string; subject: string; html: string; text: string; idempotencyKey?: string }): Promise<SendResult>;
   sendSms(m: { to: string; body: string }): Promise<SendResult>;
   sendNtfy(m: NtfyMessage): Promise<{ ok: true } | { ok: false; error: string }>;
   now: Date;
@@ -180,7 +180,7 @@ async function deliver(kind: SendKind, g: Guest, d: TickDeps): Promise<SendResul
         firstName: g.firstName, arriveDate: g.arriveDate, flightNumber: g.flight?.number ?? null,
         checkedBag: g.checkedBag, pickup: g.pickup, pageUrl: url, address: d.home.address, zachPhone: d.zachPhone,
       });
-      return await d.sendEmail({ to: g.email!, ...m });
+      return await d.sendEmail({ to: g.email!, ...m, idempotencyKey: `${g.id}:${kind}` });
     }
     const input = routeInputFor(g);
     const steps = buildRoute(input);
@@ -188,7 +188,7 @@ async function deliver(kind: SendKind, g: Guest, d: TickDeps): Promise<SendResul
     const m = renderLandedEmail({
       firstName: g.firstName, steps, input, copy: filledCopy(d.home), pageUrl: url, links: rideLinks(d.home), zachPhone: d.zachPhone,
     });
-    return await d.sendEmail({ to: g.email!, ...m });
+    return await d.sendEmail({ to: g.email!, ...m, idempotencyKey: `${g.id}:${kind}` });
   } catch (e) {
     return { ok: false, error: `render/send threw: ${(e as Error).message}` };
   }
@@ -203,6 +203,7 @@ export async function runTick(d: TickDeps): Promise<TickSummary> {
   for (const original of guests) {
     try {
       let g = original;
+      const before = JSON.stringify(g); // g === original until applySnapshot clones; mutating g would mutate original too
       const alerts: Alert[] = [];
 
       if (shouldPoll(g, d.now)) {
@@ -276,7 +277,9 @@ export async function runTick(d: TickDeps): Promise<TickSummary> {
         if (r.ok) { g.alertsSent.push(key); summary.alerts.push(`${g.id}:${key}`); }
         else summary.errors.push(`${g.id}: ntfy ${key}: ${r.error}`);
       }
-      await d.store.put(g);
+      // Skip the write when nothing changed: an untouched guest can otherwise clobber a concurrent
+      // PATCH that landed on the store between this tick's read and this write (a lost-update window).
+      if (JSON.stringify(g) !== before) await d.store.put(g);
     } catch (e) {
       summary.errors.push(`${original.id}: ${(e as Error).message}`);
     }

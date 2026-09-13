@@ -33,12 +33,24 @@ describe("sendEmail", () => {
     const [url, init] = f.mock.calls[0];
     expect(url).toBe("https://api.resend.com/emails");
     expect(init.headers.Authorization).toBe("Bearer re_x");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.headers["Idempotency-Key"]).toBeUndefined();
     expect(JSON.parse(init.body)).toEqual({ from: "Zach <zach@example.test>", to: ["g@example.test"], subject: "s", html: "<p>h</p>", text: "h", reply_to: "zach@example.test" });
+  });
+  it("sets the Idempotency-Key header when given, omits it when not", async () => {
+    const f = mockFetch({ ok: true, status: 200, json: async () => ({ id: "em_1" }) });
+    await sendEmail({ to: "g@example.test", subject: "s", html: "", text: "", idempotencyKey: "guest1:landedEmail" });
+    expect(f.mock.calls[0][1].headers["Idempotency-Key"]).toBe("guest1:landedEmail");
+    f.mockClear();
+    await sendEmail({ to: "g@example.test", subject: "s", html: "", text: "" });
+    expect(f.mock.calls[0][1].headers["Idempotency-Key"]).toBeUndefined();
   });
   it("returns errors instead of throwing", async () => {
     mockFetch({ ok: false, status: 422, json: async () => ({ message: "bad from" }) });
     expect(await sendEmail({ to: "g@example.test", subject: "s", html: "", text: "" })).toEqual({ ok: false, error: "resend 422: bad from" });
     global.fetch = vi.fn().mockRejectedValue(new Error("boom")) as unknown as typeof fetch;
+    expect((await sendEmail({ to: "g@example.test", subject: "s", html: "", text: "" })).ok).toBe(false);
+    global.fetch = vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")) as unknown as typeof fetch;
     expect((await sendEmail({ to: "g@example.test", subject: "s", html: "", text: "" })).ok).toBe(false);
     delete process.env.RESEND_API_KEY;
     expect((await sendEmail({ to: "g@example.test", subject: "s", html: "", text: "" })).ok).toBe(false);
@@ -62,12 +74,18 @@ describe("sendSms", () => {
     const [url, init] = f.mock.calls[0];
     expect(url).toBe("https://api.twilio.com/2010-04-01/Accounts/AC1/Messages.json");
     expect(init.headers.Authorization).toBe("Basic " + Buffer.from("AC1:t").toString("base64"));
+    expect(init.signal).toBeInstanceOf(AbortSignal);
     expect(Object.fromEntries(new URLSearchParams(init.body))).toEqual({ From: "+15555550199", To: "+15555550111", Body: "hi there" });
   });
   it("returns Twilio errors instead of throwing", async () => {
     process.env.GUEST_SMS_ENABLED = "true";
     mockFetch({ ok: false, status: 400, json: async () => ({ message: "unregistered number" }) });
     expect(await sendSms({ to: "+15555550111", body: "x" })).toEqual({ ok: false, error: "twilio 400: unregistered number" });
+  });
+  it("a timeout rejection returns ok:false, not a throw", async () => {
+    process.env.GUEST_SMS_ENABLED = "true";
+    global.fetch = vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")) as unknown as typeof fetch;
+    expect((await sendSms({ to: "+15555550111", body: "x" })).ok).toBe(false);
   });
 });
 
@@ -79,17 +97,20 @@ describe("sendNtfy", () => {
     const [url, init] = f.mock.calls[0];
     expect(url).toBe("https://ntfy.sh/zach-guests-test");
     expect(init.body).toBe("body — with unicode ✓");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
     for (const v of Object.values(init.headers as Record<string, string>)) expect(v).toMatch(/^[\x20-\x7E]*$/);
     expect(init.headers.Title).toBe("Shiner landed - T5 ?");
     expect(init.headers.Priority).toBe("high");
   });
-  it("never throws: missing topic, non-2xx, network error", async () => {
+  it("never throws: missing topic, non-2xx, network error, timeout", async () => {
     delete process.env.NTFY_TOPIC;
     expect((await sendNtfy({ title: "t", body: "b" })).ok).toBe(false);
     process.env.NTFY_TOPIC = "x";
     mockFetch({ ok: false, status: 500 });
     expect((await sendNtfy({ title: "t", body: "b" })).ok).toBe(false);
     global.fetch = vi.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
+    expect((await sendNtfy({ title: "t", body: "b" })).ok).toBe(false);
+    global.fetch = vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")) as unknown as typeof fetch;
     expect((await sendNtfy({ title: "t", body: "b" })).ok).toBe(false);
   });
   it("never throws on malformed click URL (unpaired UTF-16 surrogate)", async () => {

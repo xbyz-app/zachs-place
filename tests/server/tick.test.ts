@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runTick } from "../../src/server/guests/tick";
+import { runTick, shouldPoll, timelineAlerts } from "../../src/server/guests/tick";
 import { memoryGuestStore, memoryCounterStore } from "../../src/server/guests/store";
 import type { FlightResult, FlightSnapshot } from "../../src/server/guests/flight";
 import type { SendResult } from "../../src/server/guests/email";
@@ -7,7 +7,7 @@ import { emptyTracking, type Guest } from "../../src/lib/arrival/types";
 import { makeGuest } from "../helpers/guest";
 import { FAKE_HOME } from "../helpers/env";
 
-type Email = { to: string; subject: string; html: string; text: string };
+type Email = { to: string; subject: string; html: string; text: string; idempotencyKey?: string };
 type Push = { title: string; body: string; priority?: string };
 
 function harness(guest: Guest, o: { monthlyCap?: number; email?: () => SendResult; sms?: () => SendResult } = {}) {
@@ -277,5 +277,75 @@ describe("runTick: landed sends", () => {
     const h = harness(landedGuest({}, { international: null }));
     await h.tick("2026-09-20T12:25:00Z");
     expect(h.pushes.find((p) => p.title === "Guest landed")!.body).toContain("couldn't tell if the flight was international");
+  });
+  it("landed email carries a per-send idempotency key", async () => {
+    const h = harness(landedGuest());
+    await h.tick("2026-09-20T12:25:00Z");
+    expect(h.emails[0]).toMatchObject({ idempotencyKey: "testy-abc123:landedEmail" });
+  });
+});
+
+describe("runTick: idempotency keys", () => {
+  it("pre-arrival email carries a per-send idempotency key", async () => {
+    const h = harness(makeGuest({ doorInvited: true }));
+    await h.tick("2026-09-18T14:05:00Z");
+    expect(h.emails[0]).toMatchObject({ idempotencyKey: "testy-abc123:preArrival" });
+  });
+});
+
+describe("shouldPoll: pure cost-bound and blindness guards", () => {
+  const g = (o: Partial<Guest["tracking"]> = {}) => makeGuest({ tracking: inFlight(o) });
+
+  it("pins the scheduledDeparture-30m gate: dep-31m false, dep-29m true (not checked in 10+ min)", () => {
+    // scheduledDeparture 10:00Z; lastCheckedAt fixed well in the past so "since" always clears cadence.
+    const guest = g({ lastCheckedAt: "2026-09-20T08:00:00.000Z" });
+    expect(shouldPoll(guest, new Date("2026-09-20T09:29:00.000Z"))).toBe(false); // dep-31m
+    expect(shouldPoll(guest, new Date("2026-09-20T09:31:00.000Z"))).toBe(true);  // dep-29m
+  });
+
+  it("pins the 5-min-near/10-min-far cadence: ETA 25m away + 6m since -> true, ETA 60m away + 6m since -> false", () => {
+    const near = g({ scheduledDeparture: "2026-09-20T05:00:00.000Z", estimatedArrival: "2026-09-20T09:25:00.000Z", lastCheckedAt: "2026-09-20T08:54:00.000Z" });
+    expect(shouldPoll(near, new Date("2026-09-20T09:00:00.000Z"))).toBe(true);
+    const far = g({ scheduledDeparture: "2026-09-20T05:00:00.000Z", estimatedArrival: "2026-09-20T10:00:00.000Z", lastCheckedAt: "2026-09-20T08:54:00.000Z" });
+    expect(shouldPoll(far, new Date("2026-09-20T09:00:00.000Z"))).toBe(false);
+  });
+
+  it("pins the +6h stop: latest estimate + 6h01m, not landed -> false", () => {
+    const guest = g({ scheduledDeparture: "2026-09-20T05:00:00.000Z", estimatedArrival: "2026-09-20T09:00:00.000Z", lastCheckedAt: "2026-09-20T08:00:00.000Z" });
+    expect(shouldPoll(guest, new Date("2026-09-20T15:01:00.000Z"))).toBe(false);
+  });
+});
+
+describe("timelineAlerts: pure stale guard", () => {
+  it("emits key 'stale' when departed and now is more than 2h past the latest estimate", () => {
+    const guest = makeGuest({ tracking: inFlight({ estimatedArrival: "2026-09-20T12:00:00.000Z" }) });
+    const before = timelineAlerts(guest, new Date("2026-09-20T13:59:00.000Z"), "https://guest.example.test");
+    expect(before.some((a) => a.key === "stale")).toBe(false);
+    const after = timelineAlerts(guest, new Date("2026-09-20T14:01:00.000Z"), "https://guest.example.test");
+    expect(after.find((a) => a.key === "stale")).toMatchObject({ title: "Guest flight status stale", priority: "high" });
+  });
+});
+
+describe("runTick: lost-update window vs PATCH", () => {
+  it("a guest with no due work leaves the store untouched (no trailing put)", async () => {
+    const h = harness(makeGuest(settled));
+    const putSpy = vi.spyOn(h.store, "put");
+    await h.tick("2026-09-16T12:00:00Z");
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("runTick: diverted", () => {
+  it("diverted: high alert titled 'Guest flight diverted', no sends", async () => {
+    const h = harness(makeGuest({ ...settled, tracking: inFlight() }));
+    h.flights.push(snap({ state: "diverted" }));
+    await h.tick("2026-09-20T11:10:00Z");
+    await h.tick("2026-09-20T11:20:00Z");
+    expect(h.fetchFlight).toHaveBeenCalledTimes(1);
+    const push = h.pushes.find((p) => p.title === "Guest flight diverted");
+    expect(push).toMatchObject({ priority: "high" });
+    expect(titles(h.pushes)).toEqual(["Guest flight diverted"]);
+    expect(h.emails).toHaveLength(0);
+    expect(h.texts).toHaveLength(0);
   });
 });

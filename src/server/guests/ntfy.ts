@@ -11,7 +11,7 @@ export async function sendNtfy(msg: NtfyMessage): Promise<{ ok: true } | { ok: f
     const headers: Record<string, string> = { Title: ascii(msg.title), Tags: "house" };
     if (msg.priority) headers.Priority = msg.priority;
     if (msg.click) headers.Click = ascii(encodeURI(msg.click));
-    const res = await fetch(`https://ntfy.sh/${topic}`, { method: "POST", headers, body: msg.body });
+    const res = await fetch(`https://ntfy.sh/${topic}`, { method: "POST", headers, body: msg.body, signal: AbortSignal.timeout(3000) });
     return res.ok ? { ok: true } : { ok: false, error: `ntfy ${res.status}` };
   } catch (e) {
     return { ok: false, error: `ntfy unreachable: ${(e as Error).message}` };
