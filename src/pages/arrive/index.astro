@@ -1,0 +1,68 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+<BaseLayout title="Getting to Zach's" noindex>
+  <main class="arrive">
+    <p id="loading" class="muted">one sec...</p>
+
+    <section id="gone" class="hero" hidden>
+      <h1 id="gone-title"></h1>
+      <p id="gone-text" class="muted"></p>
+    </section>
+
+    <div id="page" hidden>
+      <section class="hero">
+        <h1 id="hello"></h1>
+        <p id="status" class="status"></p>
+      </section>
+
+      <section id="where" class="card" aria-label="Where are you?">
+        <h2 class="section-title">where are you?</h2>
+        <p class="muted">tap the letter on your gate.</p>
+        <div id="picker" class="picker" role="group" aria-label="Concourse"></div>
+      </section>
+
+      <div id="steps"></div>
+
+      <section id="ride" class="card" hidden>
+        <h2 class="section-title">get a ride</h2>
+        <div class="buttons">
+          <a id="lyft" class="btn primary" rel="noreferrer">open lyft</a>
+          <a id="uber" class="btn" rel="noreferrer">open uber</a>
+        </div>
+        <button id="copy" class="btn ghost" type="button">copy my address</button>
+        <p id="address" class="muted"></p>
+      </section>
+
+      <section class="card buttons">
+        <a id="call" class="btn" hidden>call zach</a>
+        <a href="/guest" class="btn ghost">house manual</a>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<style is:global>
+  .arrive { max-width: 560px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-10); color: var(--text-primary); font-family: var(--font-sans); }
+  .arrive [hidden] { display: none !important; }
+  .arrive .hero h1 { font-size: 2rem; margin: 0 0 var(--space-2); }
+  .arrive .status { color: var(--accent-warm); margin: 0; font-size: 1.05rem; }
+  .arrive .muted { color: var(--text-secondary); }
+  .arrive .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); padding: var(--space-5); margin-top: var(--space-5); }
+  .arrive .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 0 0 var(--space-3); }
+  .arrive .picker { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .arrive .picker button { min-width: 44px; min-height: 44px; border-radius: var(--radius-chip); border: 1px solid var(--border-subtle); background: var(--bg-tile); color: var(--text-primary); font-size: 1rem; font-weight: 600; }
+  .arrive .picker button[aria-pressed="true"] { background: var(--bg-tile-active); border-color: var(--border-active); color: var(--accent-warm); }
+  .arrive .step-list { margin: 0; padding-left: 1.4em; }
+  .arrive .step-list li { margin: 0 0 var(--space-3); line-height: 1.5; }
+  .arrive .step-list li.branch { list-style: none; margin-left: -1.4em; font-weight: 700; color: var(--accent-warm); }
+  .arrive .buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .arrive .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 var(--space-5); border-radius: var(--radius-chip); background: var(--bg-tile); color: var(--text-primary); border: 1px solid var(--border-subtle); text-decoration: none; font-weight: 600; font-size: 1rem; }
+  .arrive .btn.primary { background: var(--accent-warm); color: var(--bg-base); border-color: transparent; }
+  .arrive .btn.ghost { background: transparent; }
+  .arrive #copy { margin-top: var(--space-3); }
+</style>
+
+<script>
+  import "../../scripts/arrive";
+</script>

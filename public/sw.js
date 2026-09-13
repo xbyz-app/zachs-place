@@ -29,6 +29,9 @@ self.addEventListener("fetch", (event) => {
   // API: network-only, never cache.
   if (url.pathname.startsWith("/api/")) return;
 
+  // Arrival pages: network-only, never cache a guest's page shell under their token URL.
+  if (url.pathname.startsWith("/arrive")) return;
+
   // Static: cache-first.
   if (event.request.method === "GET") {
     event.respondWith(

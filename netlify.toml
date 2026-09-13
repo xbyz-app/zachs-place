@@ -8,6 +8,18 @@
   to = "/guest"
   status = 302
 
+[[redirects]]
+  from = "/arrive/*"
+  to = "/arrive/index.html"
+  status = 200
+
+[[headers]]
+  for = "/arrive/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-cache"
+
 [functions]
   node_bundler = "esbuild"
 
