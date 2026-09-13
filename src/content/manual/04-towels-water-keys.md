@@ -8,4 +8,4 @@ order: 4
 
 **Water** — on the bathroom counter, with backup in the fridge. There is an aggressive amount of ice in the freezer.
 
-**Keys & elevator** — the keychain has both the elevator code and the door code on it. Your DOOR app gets you into 31P and nothing else.
+**Keys & elevator** — the keychain has both the elevator code and the door code on it. Your DOOR app gets you into my place and nothing else.
