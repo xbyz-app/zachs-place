@@ -22,45 +22,50 @@ export default async function handler(req: Request): Promise<Response> {
   const site = siteUrl();
   const id = new URL(req.url).searchParams.get("id");
 
-  switch (req.method) {
-    case "GET": {
-      const guests = await store.list();
-      return json({ guests: guests.map((g) => ({ ...g, pageUrl: pageUrl(site, g) })) });
+  try {
+    switch (req.method) {
+      case "GET": {
+        const guests = await store.list();
+        return json({ guests: guests.map((g) => ({ ...g, pageUrl: pageUrl(site, g) })) });
+      }
+      case "POST": {
+        const p = parseCreate(await req.json().catch(() => undefined));
+        if (!p.ok) return json({ errors: p.errors }, 400);
+        const g = newGuest(p.value, new Date());
+        await store.put(g);
+        const url = pageUrl(site, g);
+        const r = await sendNtfy({
+          title: "Guest added",
+          body: `${g.name}, ${g.arriveDate} to ${g.departDate}${g.flight ? `, ${g.flight.number}` : ", no flight yet"}.\n${url}`,
+          click: url,
+        });
+        if (r.ok) { g.alertsSent.push("created"); await store.put(g); }
+        else console.warn("[guests] ntfy failed:", r.error);
+        return json({ guest: g, pageUrl: url }, 201);
+      }
+      case "PATCH": {
+        if (!id) return json({ error: "id query param required" }, 400);
+        const g = await store.get(id);
+        if (!g) return json({ error: "not found" }, 404);
+        const p = parsePatch(await req.json().catch(() => undefined));
+        if (!p.ok) return json({ errors: p.errors }, 400);
+        const next = applyPatch(g, p.value);
+        if (next.departDate < next.arriveDate) return json({ errors: ["departDate is before arriveDate"] }, 400);
+        await store.put(next);
+        return json({ guest: next, pageUrl: pageUrl(site, next) });
+      }
+      case "DELETE": {
+        if (!id) return json({ error: "id query param required" }, 400);
+        if (!(await store.get(id))) return json({ error: "not found" }, 404);
+        await store.remove(id);
+        return json({ ok: true });
+      }
+      default:
+        return json({ error: "method not allowed" }, 405);
     }
-    case "POST": {
-      const p = parseCreate(await req.json().catch(() => undefined));
-      if (!p.ok) return json({ errors: p.errors }, 400);
-      const g = newGuest(p.value, new Date());
-      await store.put(g);
-      const url = pageUrl(site, g);
-      const r = await sendNtfy({
-        title: "Guest added",
-        body: `${g.name}, ${g.arriveDate} to ${g.departDate}${g.flight ? `, ${g.flight.number}` : ", no flight yet"}.\n${url}`,
-        click: url,
-      });
-      if (r.ok) { g.alertsSent.push("created"); await store.put(g); }
-      else console.warn("[guests] ntfy failed:", r.error);
-      return json({ guest: g, pageUrl: url }, 201);
-    }
-    case "PATCH": {
-      if (!id) return json({ error: "id query param required" }, 400);
-      const g = await store.get(id);
-      if (!g) return json({ error: "not found" }, 404);
-      const p = parsePatch(await req.json().catch(() => undefined));
-      if (!p.ok) return json({ errors: p.errors }, 400);
-      const next = applyPatch(g, p.value);
-      if (next.departDate < next.arriveDate) return json({ errors: ["departDate is before arriveDate"] }, 400);
-      await store.put(next);
-      return json({ guest: next, pageUrl: pageUrl(site, next) });
-    }
-    case "DELETE": {
-      if (!id) return json({ error: "id query param required" }, 400);
-      if (!(await store.get(id))) return json({ error: "not found" }, 404);
-      await store.remove(id);
-      return json({ ok: true });
-    }
-    default:
-      return json({ error: "method not allowed" }, 405);
+  } catch (err) {
+    console.error("[guests]", err);
+    return json({ error: "internal error" }, 500);
   }
 }
 

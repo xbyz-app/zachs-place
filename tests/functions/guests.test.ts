@@ -68,4 +68,19 @@ describe("/api/guests", () => {
     expect((await call("DELETE", undefined, `?id=${guest.id}`)).status).toBe(200);
     expect(await mem.get(guest.id)).toBeNull();
   });
+  it("returns 500 when store fails, without leaking error details", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mem = {
+      get: async () => { throw new Error("blob secret detail"); },
+      put: async () => { throw new Error("blob secret detail"); },
+      list: async () => { throw new Error("blob secret detail"); },
+      remove: async () => { throw new Error("blob secret detail"); },
+    };
+    const res = await call("GET");
+    expect(res.status).toBe(500);
+    const bodyText = await res.text();
+    expect(bodyText).not.toContain("blob secret detail");
+    expect(JSON.parse(bodyText)).toEqual({ error: "internal error" });
+    spy.mockRestore();
+  });
 });
