@@ -217,11 +217,13 @@ describe("runTick: landed sends", () => {
   });
   it("the lease is persisted before the provider is called", async () => {
     const h = harness(landedGuest({ phone: null }));
+    let observed: string | undefined;
     h.sendEmail.mockImplementationOnce(async () => {
-      expect((await h.store.get("testy-abc123"))!.sends.landedEmail?.status).toBe("sending");
+      observed = (await h.store.get("testy-abc123"))!.sends.landedEmail?.status;
       return { ok: true, id: "em1" };
     });
     await h.tick("2026-09-20T12:25:00Z");
+    expect(observed).toBe("sending");
     expect(h.sendEmail).toHaveBeenCalledTimes(1);
   });
   it("international unknown: sends domestic steps and says it couldn't tell", async () => {
