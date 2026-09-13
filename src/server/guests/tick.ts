@@ -35,6 +35,7 @@ const FINISHED = new Set(["landed", "cancelled", "diverted"]);
 
 export function shouldPoll(g: Guest, now: Date): boolean {
   if (!g.flight) return false;
+  if (isExpired(g, now)) return false;
   const t = g.tracking;
   if (FINISHED.has(t.state)) return false;
   if (now < etDateTime(addDays(g.flight.date, -1), 20)) return false;
@@ -48,8 +49,10 @@ export function shouldPoll(g: Guest, now: Date): boolean {
     const interval = eta - now.getTime() < 30 * MIN ? 5 : 10;
     return since >= interval - 0.5;
   }
-  // No schedule yet (not found, or only errors so far): hourly from 5am ET on the flight date.
+  // No schedule yet (not found, or only errors so far): hourly from 5am ET on the flight date,
+  // bounded to the day after so a mistyped flight number can't poll forever.
   if (now < etDateTime(g.flight.date, 5)) return false;
+  if (now >= etDateTime(addDays(g.flight.date, 1), 0)) return false;
   return since >= 59.5;
 }
 
@@ -96,11 +99,8 @@ export function applySnapshot(g: Guest, result: FlightResult, now: Date): { gues
   if (prevGate && s.gate && prevGate !== s.gate) {
     alerts.push({ key: `gate:${s.gate}`, title: "Guest gate change", body: `${who}: arrival gate ${prevGate} -> ${s.gate}.` });
   }
-  if (s.state === "cancelled" || s.state === "diverted") {
-    alerts.push({ key: `state:${s.state}`, priority: "high",
-      title: s.state === "cancelled" ? "Guest flight cancelled" : "Guest flight diverted",
-      body: `${who} shows ${s.state}. nothing has been sent to them.` });
-  }
+  // cancelled/diverted, landed-nothing-sent, stuck/failed sends: generated in timelineAlerts from
+  // persisted state below, so a failed ntfy delivery is retried on the next tick instead of lost.
   return { guest, alerts };
 }
 
@@ -114,7 +114,7 @@ const canAttempt = (r: SendRecord | undefined) => !r || (r.status === "failed" &
 export function dueSends(g: Guest, now: Date): SendKind[] {
   const out: SendKind[] = [];
   const preWindow = now >= etDateTime(addDays(g.arriveDate, -2), 10) && now < etDateTime(addDays(g.arriveDate, 1), 0);
-  if (g.email && preWindow && g.tracking.state !== "landed" && canAttempt(g.sends.preArrival)) out.push("preArrival");
+  if (g.email && preWindow && !FINISHED.has(g.tracking.state) && canAttempt(g.sends.preArrival)) out.push("preArrival");
   if (landedRecently(g, now)) {
     if (g.email && canAttempt(g.sends.landedEmail)) out.push("landedEmail");
     if (g.phone && canAttempt(g.sends.landedSms)) out.push("landedSms");
@@ -122,10 +122,13 @@ export function dueSends(g: Guest, now: Date): SendKind[] {
   return out;
 }
 
+const STUCK_DETAIL = "lease expired mid-send; may or may not have gone out";
+
 export function timelineAlerts(g: Guest, now: Date, site: string): Alert[] {
   const a: Alert[] = [];
   const t = g.tracking;
   const url = pageUrl(site, g);
+  const who = `${g.firstName}'s ${g.flight?.number ?? "flight"}`;
   if (!g.doorInvited && now >= etDateTime(addDays(g.arriveDate, -3), 9) && now < etDateTime(addDays(g.arriveDate, 1), 0)) {
     a.push({ key: "door-reminder", title: "Send the Door invite",
       body: `${g.firstName} arrives ${g.arriveDate} and doesn't have a Door invite yet. once it's sent, PATCH doorInvited: true.` });
@@ -139,7 +142,29 @@ export function timelineAlerts(g: Guest, now: Date, site: string): Alert[] {
   const latest = t.estimatedArrival ?? t.scheduledArrival;
   if (latest && (t.state === "scheduled" || t.state === "departed" || t.state === "unknown") && now.getTime() > Date.parse(latest) + 2 * HOUR) {
     a.push({ key: "stale", title: "Guest flight status stale", priority: "high",
-      body: `${g.firstName}'s ${g.flight?.number} should have landed by ${etClock(latest)} but tracking never saw it land. nothing was sent to them.` });
+      body: `${who} should have landed by ${etClock(latest)} but tracking never saw it land. nothing was sent to them.` });
+  }
+  if (t.state === "cancelled" || t.state === "diverted") {
+    a.push({ key: `state:${t.state}`, priority: "high",
+      title: t.state === "cancelled" ? "Guest flight cancelled" : "Guest flight diverted",
+      body: `${who} shows ${t.state}. nothing has been sent to them.` });
+  }
+  if (t.state === "landed" && !landedRecently(g, now)) {
+    const when = t.landedAt ? etClock(t.landedAt) : "no landing time";
+    a.push({ key: "landed-late", title: "Guest landed, nothing sent", priority: "high",
+      body: `${who} shows landed (${when}) but too late or too unclear to send steps. nothing was sent to them.` });
+  }
+  for (const kind of SEND_KINDS) {
+    const r = g.sends[kind];
+    if (r?.status === "failed" && r.attempts >= 3) {
+      if (r.detail === STUCK_DETAIL) {
+        a.push({ key: `stuck:${kind}`, title: "Guest message unclear", priority: "high",
+          body: `the ${kind} message to ${g.firstName} may or may not have gone out (a tick died mid-send). check the Resend/Twilio logs. it won't be retried.` });
+      } else {
+        a.push({ key: `failed:${kind}`, title: "Guest message failed", priority: "high",
+          body: `the ${kind} message to ${g.firstName} failed 3 times: ${r.detail}` });
+      }
+    }
   }
   if (isExpired(g, now)) {
     a.push({ key: "expired", title: "Guest visit over", body: `${g.name}'s visit is over and the page link is dead. run: cd ~/zachs-place && npm run archive-guests` });
@@ -201,18 +226,17 @@ export async function runTick(d: TickDeps): Promise<TickSummary> {
         }
       }
 
+      // Mutate expired "sending" leases here; timelineAlerts (below) derives the stuck/failed
+      // alert from this persisted state every tick, so a failed ntfy delivery is retried.
       for (const kind of SEND_KINDS) {
         const r = g.sends[kind];
         if (r?.status === "sending" && d.now.getTime() - Date.parse(r.at) > 10 * MIN) {
-          g.sends[kind] = { ...r, status: "failed", attempts: 3, detail: "lease expired mid-send; may or may not have gone out" };
-          alerts.push({ key: `stuck:${kind}`, title: "Guest message unclear", priority: "high",
-            body: `the ${kind} message to ${g.firstName} may or may not have gone out (a tick died mid-send). check the Resend/Twilio logs. it won't be retried.` });
+          g.sends[kind] = { ...r, status: "failed", attempts: 3, detail: STUCK_DETAIL };
         }
       }
 
       alerts.push(...timelineAlerts(g, d.now, d.siteUrl));
 
-      const sentNow: SendKind[] = [];
       for (const kind of dueSends(g, d.now)) {
         const attempts = (g.sends[kind]?.attempts ?? 0) + 1;
         g.sends[kind] = { status: "sending", at: d.now.toISOString(), attempts };
@@ -221,21 +245,17 @@ export async function runTick(d: TickDeps): Promise<TickSummary> {
         const at = d.now.toISOString();
         if (r.ok) {
           g.sends[kind] = { status: "sent", at, attempts, detail: r.id };
-          sentNow.push(kind);
           summary.sent.push(`${g.id}:${kind}`);
         } else if (r.skipped) {
           g.sends[kind] = { status: "skipped", at, attempts, detail: r.reason };
         } else {
+          // failed:<kind> alert is derived from this persisted state in timelineAlerts, not here.
           g.sends[kind] = { status: "failed", at, attempts, detail: r.error };
-          if (attempts >= 3) {
-            alerts.push({ key: `failed:${kind}`, title: "Guest message failed", priority: "high",
-              body: `the ${kind} message to ${g.firstName} failed 3 times: ${r.error}` });
-          }
         }
         await d.store.put(g);
       }
 
-      if (sentNow.includes("preArrival")) {
+      if (g.sends.preArrival?.status === "sent") {
         alerts.push({ key: "pre-arrival-sent", title: "Pre-arrival email sent", body: `${g.firstName}'s pre-arrival email went out.\n${pageUrl(d.siteUrl, g)}` });
       }
 

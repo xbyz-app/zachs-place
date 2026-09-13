@@ -122,7 +122,7 @@ export function newGuest(input: GuestInput, now: Date, rand: (n: number) => Buff
 }
 
 // Alert keys that belong to one specific flight; cleared when the flight changes.
-const FLIGHT_ALERT = /^(delay:|gate:|state:|errors:|stale$|not-found$|landed$|stuck:landed|failed:landed|no-flight$)/;
+const FLIGHT_ALERT = /^(delay:|gate:|state:|errors:|stale$|not-found$|landed(-late)?$|stuck:landed|failed:landed|no-flight$)/;
 
 export function applyPatch(g: Guest, patch: Partial<GuestInput>): Guest {
   const next = structuredClone(g);

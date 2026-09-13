@@ -61,7 +61,7 @@ describe("parsePatch + applyPatch", () => {
     const g = makeGuest({
       tracking: { ...makeGuest().tracking, state: "landed", gate: "B12", concourse: "B" },
       sends: { preArrival: { status: "sent", at: "x", attempts: 1 }, landedEmail: { status: "sent", at: "x", attempts: 1 } },
-      alertsSent: ["created", "door-reminder", "delay:30", "gate:B12", "landed"],
+      alertsSent: ["created", "door-reminder", "delay:30", "gate:B12", "landed", "landed-late"],
     });
     const next = applyPatch(g, { flight: { number: "DL9", date: "2026-09-21" } });
     expect(next.tracking.state).toBe("idle");

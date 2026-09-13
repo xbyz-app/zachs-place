@@ -23,7 +23,7 @@ function harness(guest: Guest, o: { monthlyCap?: number; email?: () => SendResul
     await runTick({ store, counters, fetchFlight, sendEmail, sendSms, sendNtfy, now: new Date(iso), siteUrl: "https://guest.example.test", home: FAKE_HOME, zachPhone: "+15555550100", monthlyCap: o.monthlyCap ?? 500 });
     return (await store.get(guest.id))!;
   };
-  return { store, counters, flights, fetchFlight, sendEmail, sendSms, emails, texts, pushes, tick };
+  return { store, counters, flights, fetchFlight, sendEmail, sendSms, sendNtfy, emails, texts, pushes, tick };
 }
 
 // DL1234: departs 06:00 ET (10:00Z), lands 08:25 ET (12:25Z) on 2026-09-20.
@@ -39,7 +39,10 @@ const inFlight = (o: Partial<Guest["tracking"]> = {}): Guest["tracking"] => ({
   scheduledDeparture: "2026-09-20T10:00:00.000Z", scheduledArrival: "2026-09-20T12:25:00.000Z",
   lastCheckedAt: "2026-09-20T11:00:00.000Z", ...o,
 });
-const settled = { doorInvited: true, sends: { preArrival: { status: "sent" as const, at: "x", attempts: 1 } } };
+// preArrival already sent AND acknowledged -- the "Pre-arrival email sent" alert is derived from
+// persisted state (so it survives an ntfy failure), so a fixture representing "fully handled"
+// needs the ack already recorded, or it re-fires the moment alertsSent is checked.
+const settled = { doorInvited: true, sends: { preArrival: { status: "sent" as const, at: "x", attempts: 1 } }, alertsSent: ["pre-arrival-sent"] };
 const titles = (p: Push[]) => p.map((x) => x.title);
 
 describe("runTick: the Shiner timeline end to end", () => {
@@ -137,6 +140,17 @@ describe("runTick: alerts", () => {
     expect(titles(h.pushes)).toEqual(["Guest flight cancelled"]);
     expect(h.emails).toHaveLength(0);
   });
+  it("a one-shot alert survives an ntfy failure and is delivered on the next tick", async () => {
+    const h = harness(makeGuest({ ...settled, tracking: inFlight() }));
+    h.flights.push(snap({ state: "cancelled" }));
+    h.sendNtfy.mockImplementationOnce(async () => ({ ok: false, error: "ntfy down" }));
+    await h.tick("2026-09-20T11:10:00Z");
+    expect(h.pushes).toHaveLength(0); // the override above doesn't record to h.pushes
+    await h.tick("2026-09-20T11:20:00Z");
+    expect(titles(h.pushes)).toEqual(["Guest flight cancelled"]);
+    await h.tick("2026-09-20T11:30:00Z");
+    expect(titles(h.pushes)).toEqual(["Guest flight cancelled"]); // not re-delivered once acknowledged
+  });
   it("not found on the night-before check, then hourly from 5am ET", async () => {
     const h = harness(makeGuest(settled));
     h.flights.push({ ok: true, snapshot: null }, { ok: true, snapshot: null }, { ok: true, snapshot: null });
@@ -171,6 +185,26 @@ describe("runTick: alerts", () => {
   });
 });
 
+describe("runTick: safety bounds", () => {
+  it("no-schedule polling stops the day after the flight date (bounded, so a bad flight number can't burn the cap forever)", async () => {
+    const h = harness(makeGuest({ ...settled, tracking: { ...emptyTracking(), lastCheckedAt: "2026-09-20T09:05:00.000Z" } }));
+    await h.tick("2026-09-21T05:00:00Z"); // 1am ET the day after the flight date
+    expect(h.fetchFlight).not.toHaveBeenCalled();
+  });
+  it("an expired guest is never polled, even with a live schedule that never resolved", async () => {
+    // scheduledArrival far in the future so the ordinary "6h past latest estimate" cutoff doesn't
+    // itself block polling -- only the isExpired guard should.
+    const h = harness(makeGuest({ ...settled, tracking: inFlight({ scheduledArrival: "2026-09-30T12:25:00.000Z" }) }));
+    await h.tick("2026-09-26T05:00:00Z"); // 1am ET, past departDate + 3d
+    expect(h.fetchFlight).not.toHaveBeenCalled();
+  });
+  it("pre-arrival never sends once the flight is cancelled or diverted", async () => {
+    const h = harness(makeGuest({ tracking: { ...emptyTracking(), state: "cancelled" } }));
+    await h.tick("2026-09-18T14:05:00Z"); // inside the pre-arrival window
+    expect(h.emails).toHaveLength(0);
+  });
+});
+
 describe("runTick: landed sends", () => {
   const landedGuest = (o: Partial<Guest> = {}, t: Partial<Guest["tracking"]> = {}) =>
     makeGuest({ ...settled, ...o, tracking: inFlight({ state: "landed", gate: "B12", concourse: "B", landedAt: "2026-09-20T12:20:00.000Z", lastCheckedAt: "2026-09-20T12:20:00.000Z", ...t }) });
@@ -192,6 +226,19 @@ describe("runTick: landed sends", () => {
     await h.tick("2026-09-20T12:25:00Z");
     expect(h.emails).toHaveLength(0);
     expect(h.texts).toHaveLength(0);
+    const late = h.pushes.find((p) => p.title === "Guest landed, nothing sent")!;
+    expect(late).toBeTruthy();
+    expect(late.priority).toBe("high");
+    expect(late.body).toContain("1:00am"); // 05:00Z = 1am ET
+  });
+  it("landed with no landedAt at all still alerts Zach, no guest send", async () => {
+    const h = harness(landedGuest({}, { landedAt: null }));
+    await h.tick("2026-09-20T12:25:00Z");
+    expect(h.emails).toHaveLength(0);
+    expect(h.texts).toHaveLength(0);
+    const late = h.pushes.find((p) => p.title === "Guest landed, nothing sent")!;
+    expect(late).toBeTruthy();
+    expect(late.body).toContain("no landing time");
   });
   it("sms disabled: recorded as skipped, reported, never retried", async () => {
     const h = harness(landedGuest(), { sms: () => ({ ok: false, skipped: true, reason: "sms disabled" }) });
