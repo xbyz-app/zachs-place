@@ -69,7 +69,7 @@ type Guest = {
     international: boolean | null;
     concourse: 'T'|'A'|'B'|'C'|'D'|'E'|'F' | null;
     gate: string | null;
-    scheduledArrival: string | null; estimatedArrival: string | null; landedAt: string | null;
+    scheduledDeparture: string | null; scheduledArrival: string | null; estimatedArrival: string | null; landedAt: string | null;
     lastCheckedAt: string | null; lastError: string | null; consecutiveErrors: number;
   };
   sends: Partial<Record<'preArrival'|'landedSms'|'landedEmail', { status: 'sending'|'sent'|'failed'|'skipped'; at: string; attempts: number; detail?: string }>>;
