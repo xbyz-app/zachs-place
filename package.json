@@ -13,6 +13,7 @@
     "manual": "node tools/manual-editor.mjs"
   },
   "dependencies": {
+    "@netlify/blobs": "^11.0.3",
     "astro": "^4.16.0"
   },
   "devDependencies": {
