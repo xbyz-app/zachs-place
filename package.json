@@ -10,7 +10,8 @@
     "netlify-dev": "netlify dev",
     "test": "vitest run",
     "test:watch": "vitest",
-    "manual": "node tools/manual-editor.mjs"
+    "manual": "node tools/manual-editor.mjs",
+    "archive-guests": "node tools/archive-guests.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.0.3",

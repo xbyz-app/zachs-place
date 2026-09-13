@@ -70,3 +70,60 @@ Two gotchas worth remembering:
 - **Astro + form detection.** Astro's `data-astro-cid-*` attributes can confuse Netlify's deploy-time form parser. The plain-HTML stubs at `public/__forms.html` are the canonical fix — keep field names in sync with `src/components/Feedback.astro` and `src/pages/feedback.astro`.
 
 Also: form detection has to be turned on once per project at **Forms → Enable form detection**. Without that toggle, forms in the HTML are ignored even with `data-netlify="true"`.
+
+## Guest arrival
+
+Friends flying into ATL get a pre-arrival email, then a text + email the moment they land with
+directions from their concourse, and a private page at `guest.xbyz.fun/arrive/<token>`.
+Spec: `docs/superpowers/specs/2026-09-12-guest-arrival-design.md`.
+
+**This repo is public.** Home address, unit, floor, coordinates and phone live only in Netlify env.
+Copy in `src/lib/arrival/copy.ts` uses `{placeholders}`. Guest data never goes in git.
+
+### Adding a guest (Muse or Claude Code)
+
+```bash
+curl -X POST https://guest.xbyz.fun/api/guests \
+  -H "Authorization: Bearer $GUEST_API_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"Full Name","firstName":"What Zach calls them","email":"them@example.com","phone":"+14045550100",
+       "arriveDate":"2026-10-01","departDate":"2026-10-04","flight":{"number":"DL1234","date":"2026-10-01"},
+       "checkedBag":null,"pickup":"rideshare","doorInvited":false}'
+```
+
+- `checkedBag`: `true`/`false`/`null`. Leave it `null` until you know; the messages cover both cases.
+- `flight.date` is the departure date on their ticket.
+- Unknown fields are rejected on purpose.
+- Update: `PATCH /api/guests?id=<id>` with any subset (e.g. `{"doorInvited":true}`). Changing `flight` restarts tracking.
+- List: `GET /api/guests`. Remove: `DELETE /api/guests?id=<id>`.
+
+### What happens (all times ET)
+
+- **Added:** ntfy with the page link.
+- **3 days out:** ntfy reminder if the Door invite isn't marked sent.
+- **2 days out, 10am:** pre-arrival email.
+- **Night before, 8pm:** first flight check.
+- **From 30 min before departure:** checks every 10 min (5 min near landing). Alerts on delays, gate changes, cancellations, and diversions.
+- **Landed:** text + email to the guest, ntfy to Zach.
+- **Anything uncertain:** nothing goes to the guest, and Zach gets an ntfy.
+
+### Env (zachs-place site)
+
+| Var | Notes |
+|---|---|
+| `GUEST_API_KEY` | Bearer key for `/api/guests`. Muse keeps a copy in its vault. |
+| `HOME_ADDRESS`, `HOME_LAT`, `HOME_LNG`, `HOME_STREET`, `HOME_CROSS_STREET`, `HOME_UNIT`, `HOME_UNIT_LETTER`, `HOME_FLOOR` | Private. Filled into copy on the server only. |
+| `ZACH_PHONE`, `ZACH_REPLY_TO` | Call button and email reply-to. |
+| `RESEND_API_KEY`, `GUEST_EMAIL_FROM` | **Second copy** of the xbyz Resend key. |
+| `AERODATABOX_API_KEY` | **Second copy** of the xbyz key. |
+| `AERODATABOX_MONTHLY_CAP` | Calls allowed per month from this site. Unset or 0 = tracking off. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | **Second copy** of the xbyz Twilio creds. |
+| `GUEST_SMS_ENABLED` | Must be exactly `true` to send texts. Leave unset until carrier registration is approved. |
+| `NTFY_TOPIC` | Zach's guest alerts topic. |
+| `SITE_URL` | `https://guest.xbyz.fun` |
+
+**Rotating a key:** the Resend, AeroDataBox and Twilio keys live in BOTH xbyz-app (Netlify + `.env.local` + GitHub Actions where used) AND here. Update both, or this site silently stops sending.
+
+### After a visit
+
+`GUEST_API_KEY=$(npx netlify env:get GUEST_API_KEY) npm run archive-guests` saves ended visits to
+gitignored `guests/archive/` on this Mac and deletes them from the live store.
