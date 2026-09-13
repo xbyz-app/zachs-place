@@ -96,4 +96,22 @@ describe("renderPreArrivalEmail", () => {
     expect(renderPreArrivalEmail({ ...args, checkedBag: null }).text).toContain("checking a bag");
     expect(renderPreArrivalEmail(args).text).not.toContain("checking a bag");
   });
+  it("escapes HTML in adversarial firstName, address, flightNumber; preserves page link as <a>", () => {
+    const m = renderPreArrivalEmail({
+      firstName: "<img src=x>",
+      arriveDate: "2026-09-20",
+      flightNumber: "DL<1>",
+      checkedBag: false,
+      pickup: "rideshare",
+      pageUrl: url,
+      address: "1 A&B St <b>",
+      zachPhone: "+15555550100",
+    });
+    expect(m.html).toContain("&lt;img src=x&gt;");
+    expect(m.html).toContain("1 A&amp;B St &lt;b&gt;");
+    expect(m.html).toContain("DL&lt;1&gt;");
+    expect(m.html).not.toContain("<img");
+    expect(m.html).not.toContain("<b>");
+    expect(m.html).toContain(`<a href="${url.replaceAll("&", "&amp;")}">`);
+  });
 });
