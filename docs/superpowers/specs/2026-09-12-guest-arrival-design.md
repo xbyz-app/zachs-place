@@ -18,7 +18,7 @@ The template for voice and content is the text Zach sent Shiner on 2026-08-21 (r
 
 ## Out of scope
 
-- **Building guest registration** (Emmi's system). Muse will investigate separately. The record has a slot for it (`buildingRegistered`) so it can be added later.
+- **Building guest registration** (the building's own system). Muse will investigate separately. The record has a slot for it (`buildingRegistered`) so it can be added later.
 - **Parkade** guest parking.
 - **Submitting Twilio carrier registration.** This is a separate task gated on cost approval (see "SMS"). The texting code ships behind a flag.
 - **Airports other than ATL**, and departures.
@@ -64,15 +64,15 @@ type Guest = {
   doorInvited: boolean;           // Zach sent the Door app invite
   buildingRegistered: boolean;    // reserved for Muse
   tracking: {
-    state: 'idle' | 'scheduled' | 'departed' | 'landed' | 'cancelled' | 'diverted' | 'error';
+    state: 'idle' | 'scheduled' | 'departed' | 'landed' | 'cancelled' | 'diverted' | 'unknown';
     airline: string | null;       // IATA, derived from flight number
     international: boolean | null;
     concourse: 'T'|'A'|'B'|'C'|'D'|'E'|'F' | null;
     gate: string | null;
     scheduledArrival: string | null; estimatedArrival: string | null; landedAt: string | null;
-    lastCheckedAt: string | null; lastError: string | null;
+    lastCheckedAt: string | null; lastError: string | null; consecutiveErrors: number;
   };
-  sends: Record<'preArrival'|'landedSms'|'landedEmail', { status: 'sending'|'sent'|'failed'; at: string; detail?: string }>;
+  sends: Partial<Record<'preArrival'|'landedSms'|'landedEmail', { status: 'sending'|'sent'|'failed'|'skipped'; at: string; attempts: number; detail?: string }>>;
   alertsSent: string[];           // dedupe keys, e.g. "delay:45", "gate:B12"
   createdAt: string;
 };
