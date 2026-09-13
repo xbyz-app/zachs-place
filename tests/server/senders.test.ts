@@ -92,4 +92,10 @@ describe("sendNtfy", () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("offline")) as unknown as typeof fetch;
     expect((await sendNtfy({ title: "t", body: "b" })).ok).toBe(false);
   });
+  it("never throws on malformed click URL (unpaired UTF-16 surrogate)", async () => {
+    const f = mockFetch({ ok: true });
+    const result = await sendNtfy({ title: "t", body: "b", click: "https://x.test/\uD800" });
+    expect(result).toEqual({ ok: false, error: expect.any(String) });
+    expect(f).not.toHaveBeenCalled();
+  });
 });
