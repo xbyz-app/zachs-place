@@ -1,0 +1,49 @@
+---
+import Icon from "./Icon.astro";
+// "Watch something": how to cast to the room TV. Static on purpose: the
+// Chromecast (HA media_player.penthouse_guest) is a plain dongle with no
+// remote, so the guest's phone is the only way to put something on.
+const CAST_TARGET = "Penthouse Guest";
+const WIFI = "Emmi Midtown";
+---
+<div class="watch-card">
+  <header>
+    <span class="icon"><Icon name="cast" size={22} /></span>
+    <span class="label">Watch something</span>
+  </header>
+  <p class="lede">The TV in your room has a Chromecast, and your phone is its remote.</p>
+  <ol>
+    <li>Join the <b>{WIFI}</b> Wi-Fi.</li>
+    <li>Open YouTube or another video app and tap the <span class="cast-icon" aria-label="Cast"><Icon name="cast" size={15} /></span> Cast button.</li>
+    <li>Pick <b>{CAST_TARGET}</b>.</li>
+  </ol>
+  <p class="hint">Blank screen? Set the TV to <b>HDMI 2</b>.</p>
+</div>
+
+<style>
+  .watch-card {
+    margin-top: var(--space-3);
+    background: var(--bg-tile);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-tile);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .watch-card header { display: flex; align-items: center; gap: var(--space-3); }
+  .watch-card .icon { color: var(--accent-warm); display: inline-flex; }
+  .watch-card .label { flex: 1; font-weight: 600; color: var(--text-primary); }
+  .watch-card .lede { margin: 0; color: var(--text-secondary); font-size: 15px; }
+  .watch-card ol {
+    margin: 0;
+    padding-left: 1.25em;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    color: var(--text-primary);
+    font-size: 15px;
+  }
+  .watch-card .cast-icon { display: inline-flex; vertical-align: -2px; color: var(--text-secondary); }
+  .watch-card .hint { margin: 0; font-size: 13px; color: var(--text-muted); }
+</style>
