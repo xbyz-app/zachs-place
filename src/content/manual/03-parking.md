@@ -4,4 +4,4 @@ icon: car
 order: 3
 ---
 
-Parking is available — just coordinate with me.
+There's parking. Just tell me you're bringing a car and I'll sort out where it goes.
