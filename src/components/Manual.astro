@@ -2,7 +2,12 @@
 import { getCollection } from "astro:content";
 import Icon from "./Icon.astro";
 
-const entries = (await getCollection("manual")).sort((a, b) => a.data.order - b.data.order);
+interface Props {
+  collection?: "manual" | "guide";
+}
+const { collection = "manual" } = Astro.props;
+
+const entries = (await getCollection(collection)).sort((a, b) => a.data.order - b.data.order);
 const rendered = await Promise.all(entries.map(async (entry) => {
   const { Content } = await entry.render();
   return { entry, Content };
@@ -83,6 +88,10 @@ const rendered = await Promise.all(entries.map(async (entry) => {
     padding-left: var(--space-3);
     margin: var(--space-3) 0;
     color: var(--text-secondary);
+  }
+  .manual-section .content :global(a) {
+    color: var(--accent-warm);
+    text-decoration: none;
   }
   .manual-section .content :global(ul) {
     margin: var(--space-2) 0;

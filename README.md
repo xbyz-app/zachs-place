@@ -127,3 +127,15 @@ curl -X POST https://guest.xbyz.fun/api/guests \
 
 `GUEST_API_KEY=$(npx netlify env:get GUEST_API_KEY) npm run archive-guests` saves ended visits to
 gitignored `guests/archive/` on this Mac and deletes them from the live store.
+
+## Around here (local guide + weather)
+
+The "Around here" section sits between the room controls and the manual. Its
+drawers are markdown in `src/content/guide/` with the same frontmatter as the
+manual (edit with `MANUAL_DIR=src/content/guide npm run manual`, or by hand).
+Link places with Google Maps *search* URLs by name, never coordinates: the repo
+is public.
+
+The weather card reads `weather.forecast_home` from Home Assistant through
+`/api/weather` (guest token, cached 10 min). If HA can't answer, the card stays
+hidden.

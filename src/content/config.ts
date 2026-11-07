@@ -1,6 +1,6 @@
 import { defineCollection, z } from "astro:content";
 
-const manual = defineCollection({
+const section = defineCollection({
   type: "content",
   schema: z.object({
     title: z.string(),
@@ -9,4 +9,6 @@ const manual = defineCollection({
   })
 });
 
-export const collections = { manual };
+// `manual` is the house manual; `guide` is "Around here" (coffee, restaurants).
+// Same frontmatter, same accordion.
+export const collections = { manual: section, guide: section };

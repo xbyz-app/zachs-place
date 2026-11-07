@@ -4,6 +4,7 @@ import Controls from "../components/Controls.astro";
 import Manual from "../components/Manual.astro";
 import InstallHint from "../components/InstallHint.astro";
 import Feedback from "../components/Feedback.astro";
+import Weather from "../components/Weather.astro";
 ---
 <BaseLayout title="Zach's Place">
   <InstallHint />
@@ -18,6 +19,12 @@ import Feedback from "../components/Feedback.astro";
       <Controls />
     </section>
 
+    <section class="around" aria-label="Around here">
+      <h2 class="section-title">Around here</h2>
+      <Weather />
+      <Manual collection="guide" />
+    </section>
+
     <section class="manual" aria-label="House manual">
       <h2 class="section-title">House manual</h2>
       <Manual />
@@ -29,6 +36,7 @@ import Feedback from "../components/Feedback.astro";
   <script>
     import "../scripts/controls.ts";
     import "../scripts/feedback.ts";
+    import "../scripts/weather.ts";
   </script>
 
   <style>
@@ -66,7 +74,7 @@ import Feedback from "../components/Feedback.astro";
       letter-spacing: 0.06em;
       color: var(--text-secondary);
     }
-    .controls, .manual {
+    .controls, .around, .manual {
       margin-top: var(--space-8);
     }
   </style>
