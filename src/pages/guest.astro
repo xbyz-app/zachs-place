@@ -5,6 +5,7 @@ import LivingTile from "../components/LivingTile.astro";
 import Manual from "../components/Manual.astro";
 import InstallHint from "../components/InstallHint.astro";
 import Feedback from "../components/Feedback.astro";
+import TodayStrip from "../components/TodayStrip.astro";
 ---
 <BaseLayout title="Zach's Place">
   <InstallHint />
@@ -13,6 +14,8 @@ import Feedback from "../components/Feedback.astro";
       <h1>You're at Zach's place.</h1>
       <p class="hero-sub">Welcome — make yourself at home.</p>
     </section>
+
+    <TodayStrip />
 
     <section class="controls" aria-label="Your room">
       <h2 class="section-title">Your room</h2>
@@ -36,6 +39,7 @@ import Feedback from "../components/Feedback.astro";
     import "../scripts/controls.ts";
     import "../scripts/living.ts";
     import "../scripts/feedback.ts";
+    import "../scripts/today.ts";
   </script>
 
   <style>

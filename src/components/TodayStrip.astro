@@ -1,0 +1,32 @@
+---
+// Today strip under the hero: weather and sunset from /api/today, and what's
+// open in the building, worked out in the browser so it shows even when Home
+// Assistant is offline. Wired by src/scripts/today.ts.
+---
+<section class="today" aria-label="Today" data-today>
+  <p class="weather" data-today-weather hidden>
+    <span class="temp" data-today-temp></span>
+    <span class="cond" data-today-cond></span>
+  </p>
+  <p class="meta" data-today-meta hidden></p>
+  <p class="building" data-today-building></p>
+</section>
+
+<style>
+  .today {
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    background: var(--bg-tile);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-tile);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .today p { margin: 0; }
+  .weather { display: flex; align-items: baseline; gap: var(--space-2); }
+  .temp { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+  .cond { font-size: 15px; color: var(--text-primary); }
+  .meta { font-size: 14px; color: var(--text-secondary); }
+  .building { font-size: 14px; color: var(--text-secondary); }
+</style>
