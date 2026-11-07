@@ -1,11 +1,9 @@
 ---
-title: Towels · Water · Keys
+title: Towels · Water
 icon: shower-head
 order: 4
 ---
 
 **Towels** — on your bed, with extras under the bathroom sink. The robes in the guest bathroom are clean and they're yours.
 
-**Water** — on the bathroom counter, with backup in the fridge. There is an aggressive amount of ice in the freezer.
-
-**Keys & elevator** — the keychain has the elevator code and the door code on it. If I set you up in the DOOR app, it opens my front door and nothing else in the building.
+**Water** — on the bathroom counter, with backup in the fridge. Ice machine in the freezer.
