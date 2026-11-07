@@ -1,4 +1,4 @@
-import { emptyTracking, type Guest } from "../../src/lib/arrival/types";
+import { emptyDepartTracking, emptyTracking, type Guest } from "../../src/lib/arrival/types";
 
 export function makeGuest(overrides: Partial<Guest> = {}): Guest {
   return {
@@ -11,6 +11,8 @@ export function makeGuest(overrides: Partial<Guest> = {}): Guest {
     arriveDate: "2026-09-20",
     departDate: "2026-09-23",
     flight: { number: "DL1234", date: "2026-09-20" },
+    departFlight: null,
+    departTracking: emptyDepartTracking(),
     checkedBag: false,
     pickup: "rideshare",
     doorInvited: true,

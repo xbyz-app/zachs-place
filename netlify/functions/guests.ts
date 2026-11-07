@@ -36,7 +36,7 @@ export default async function handler(req: Request): Promise<Response> {
         const url = pageUrl(site, g);
         const r = await sendNtfy({
           title: "Guest added",
-          body: `${g.name}, ${g.arriveDate} to ${g.departDate}${g.flight ? `, ${g.flight.number}` : ", no flight yet"}.\n${url}`,
+          body: `${g.name}, ${g.arriveDate} to ${g.departDate}${g.flight ? `, ${g.flight.number}` : ", no flight yet"}${g.departFlight ? `, home on ${g.departFlight.number}` : ""}.\n${url}`,
           click: url,
         });
         if (r.ok) { g.alertsSent.push("created"); await store.put(g); }

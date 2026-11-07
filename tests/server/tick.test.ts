@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { runTick, shouldPoll, timelineAlerts } from "../../src/server/guests/tick";
+import { runTick, shouldPoll, shouldPollDeparture, timelineAlerts } from "../../src/server/guests/tick";
 import { memoryGuestStore, memoryCounterStore } from "../../src/server/guests/store";
-import type { FlightResult, FlightSnapshot } from "../../src/server/guests/flight";
+import type { DepartureResult, FlightResult, FlightSnapshot } from "../../src/server/guests/flight";
 import type { SendResult } from "../../src/server/guests/email";
-import { emptyTracking, type Guest } from "../../src/lib/arrival/types";
+import { emptyDepartTracking, emptyTracking, type Guest } from "../../src/lib/arrival/types";
 import { makeGuest } from "../helpers/guest";
 import { FAKE_HOME } from "../helpers/env";
 
@@ -16,14 +16,16 @@ function harness(guest: Guest, o: { monthlyCap?: number; email?: () => SendResul
   const flights: FlightResult[] = [];
   const emails: Email[] = [], texts: { to: string; body: string }[] = [], pushes: Push[] = [];
   const fetchFlight = vi.fn(async () => flights.shift() ?? ({ ok: false, error: "no scripted response" } as FlightResult));
+  const departures: DepartureResult[] = [];
+  const fetchDeparture = vi.fn(async () => departures.shift() ?? ({ ok: false, error: "no scripted departure" } as DepartureResult));
   const sendEmail = vi.fn(async (m: Email) => { emails.push(m); return o.email?.() ?? { ok: true as const, id: `em${emails.length}` }; });
   const sendSms = vi.fn(async (m: { to: string; body: string }) => { texts.push(m); return o.sms?.() ?? { ok: true as const, id: `sm${texts.length}` }; });
   const sendNtfy = vi.fn(async (m: Push) => { pushes.push(m); return { ok: true as const }; });
   const tick = async (iso: string) => {
-    await runTick({ store, counters, fetchFlight, sendEmail, sendSms, sendNtfy, now: new Date(iso), siteUrl: "https://guest.example.test", home: FAKE_HOME, zachPhone: "+15555550100", monthlyCap: o.monthlyCap ?? 500 });
+    await runTick({ store, counters, fetchFlight, fetchDeparture, sendEmail, sendSms, sendNtfy, now: new Date(iso), siteUrl: "https://guest.example.test", home: FAKE_HOME, zachPhone: "+15555550100", monthlyCap: o.monthlyCap ?? 500 });
     return (await store.get(guest.id))!;
   };
-  return { store, counters, flights, fetchFlight, sendEmail, sendSms, sendNtfy, emails, texts, pushes, tick };
+  return { store, counters, flights, departures, fetchDeparture, fetchFlight, sendEmail, sendSms, sendNtfy, emails, texts, pushes, tick };
 }
 
 // DL1234: departs 06:00 ET (10:00Z), lands 08:25 ET (12:25Z) on 2026-09-20.
@@ -347,5 +349,115 @@ describe("runTick: diverted", () => {
     expect(titles(h.pushes)).toEqual(["Guest flight diverted"]);
     expect(h.emails).toHaveLength(0);
     expect(h.texts).toHaveLength(0);
+  });
+});
+
+// ---- Flight home: DL88 leaves ATL 18:10 ET (22:10Z) on 2026-09-23 for BOS. ----
+const dsnap = (o: Partial<NonNullable<Extract<DepartureResult, { ok: true }>["snapshot"]>> = {}): DepartureResult => ({
+  ok: true,
+  snapshot: { state: "scheduled", destination: "BOS", gate: null, scheduledDeparture: "2026-09-23T22:10:00.000Z", estimatedDeparture: null, departedAt: null, ...o },
+});
+// Arrival done and acknowledged, so only the departure is in play.
+const stayed = (o: Partial<Guest> = {}) => makeGuest({
+  ...settled,
+  tracking: { ...inFlight(), state: "landed", landedAt: "2026-09-20T12:30:00.000Z", gate: "B3", concourse: "B" },
+  sends: { ...settled.sends, landedEmail: { status: "sent", at: "x", attempts: 1 }, landedSms: { status: "sent", at: "x", attempts: 1 } },
+  alertsSent: [...settled.alertsSent, "landed"],
+  departFlight: { number: "DL88", date: "2026-09-23" },
+  ...o,
+});
+
+describe("flight home", () => {
+  it("one check the night before, then 30-min checks from 4h out, 10-min inside 90 min, stops once it's gone", async () => {
+    const h = harness(stayed());
+    await h.tick("2026-09-22T23:55:00Z"); // 7:55pm ET the night before: too early
+    expect(h.fetchDeparture).not.toHaveBeenCalled();
+    h.departures.push(dsnap());
+    await h.tick("2026-09-23T00:05:00Z"); // 8:05pm ET
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(1);
+    await h.tick("2026-09-23T17:55:00Z"); // 4h15m out: wait
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(1);
+    h.departures.push(dsnap({ gate: "B12" }));
+    await h.tick("2026-09-23T18:10:00Z"); // 4h out
+    await h.tick("2026-09-23T18:20:00Z"); // 10 min later: not yet (30-min interval)
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(2);
+    h.departures.push(dsnap({ gate: "B12" }));
+    await h.tick("2026-09-23T18:40:00Z");
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(3);
+    h.departures.push(dsnap({ gate: "B12", state: "boarding" }));
+    await h.tick("2026-09-23T21:00:00Z"); // 70 min out
+    h.departures.push(dsnap({ gate: "B12", state: "boarding" }));
+    await h.tick("2026-09-23T21:10:00Z");
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(5);
+    h.departures.push(dsnap({ gate: "B12", state: "departed", departedAt: "2026-09-23T22:15:00.000Z" }));
+    const g = await h.tick("2026-09-23T22:20:00Z");
+    expect(g.departTracking).toMatchObject({ state: "departed", gate: "B12", destination: "BOS" });
+    await h.tick("2026-09-23T22:40:00Z");
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(6);
+    expect(h.fetchFlight).not.toHaveBeenCalled(); // the landed arrival is never re-polled
+    expect(h.emails).toHaveLength(0);
+    expect(h.texts).toHaveLength(0); // page only: nothing goes to the guest
+    expect(h.pushes).toHaveLength(0); // on time, no gate change: nothing for Zach either
+    expect(await h.counters.get("aerodatabox:2026-09")).toBe(6); // same budget as arrivals
+  });
+
+  it("pushes Zach on a delay band, a gate change and a cancellation, once each", async () => {
+    const h = harness(stayed({ departTracking: { ...emptyDepartTracking(), state: "scheduled", gate: "B12", scheduledDeparture: "2026-09-23T22:10:00.000Z", lastCheckedAt: "2026-09-23T20:00:00.000Z", destination: "BOS" } }));
+    h.departures.push(dsnap({ gate: "B12", estimatedDeparture: "2026-09-23T22:50:00.000Z" }));
+    await h.tick("2026-09-23T21:00:00Z");
+    h.departures.push(dsnap({ gate: "C4", estimatedDeparture: "2026-09-23T22:55:00.000Z" }));
+    await h.tick("2026-09-23T21:30:00Z"); // 30 min later; still >90 min out
+    expect(titles(h.pushes)).toEqual(["Guest flight home delayed", "Guest flight home: gate change"]);
+    expect(h.pushes[0].body).toContain("40 min late, now leaving 6:50pm");
+    expect(h.pushes[1].body).toContain("B12 -> C4");
+    h.departures.push(dsnap({ gate: "C4", state: "cancelled" }));
+    await h.tick("2026-09-23T21:40:00Z"); // inside 90 min: 10-min checks
+    await h.tick("2026-09-23T21:50:00Z");
+    expect(titles(h.pushes).slice(2)).toEqual(["Guest flight home cancelled"]);
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(3); // cancelled stops polling
+    expect(h.emails).toHaveLength(0);
+  });
+
+  it("not found and repeated errors push Zach; never touches the arrival's alerts", async () => {
+    const h = harness(stayed());
+    h.departures.push({ ok: true, snapshot: null });
+    const g = await h.tick("2026-09-23T00:05:00Z");
+    expect(titles(h.pushes)).toEqual(["Guest flight home not found"]);
+    expect(g.alertsSent).toContain("dep:not-found");
+    for (const t of ["2026-09-23T09:05:00Z", "2026-09-23T10:05:00Z", "2026-09-23T11:05:00Z"]) await h.tick(t); // hourly from 5am ET
+    expect(h.fetchDeparture).toHaveBeenCalledTimes(4);
+    expect(titles(h.pushes)).toContain("Flight home tracking failing");
+  });
+
+  it("shouldPollDeparture: no flight, old records, and the expiry are all off", () => {
+    const now = new Date("2026-09-23T21:00:00Z");
+    expect(shouldPollDeparture(stayed({ departFlight: null }), now)).toBe(false);
+    const legacy = stayed();
+    delete legacy.departTracking; // stored before this feature: tracking defaults
+    expect(shouldPollDeparture(legacy, now)).toBe(true);
+    const old = makeGuest();
+    delete (old as Partial<Guest>).departFlight;
+    delete old.departTracking;
+    expect(shouldPollDeparture(old, now)).toBe(false);
+    expect(shouldPollDeparture(stayed({ departDate: "2026-09-19", arriveDate: "2026-09-18" }), now)).toBe(false); // expired
+  });
+
+  it("respects the shared monthly cap", async () => {
+    const h = harness(stayed(), { monthlyCap: 1 });
+    await h.counters.increment("aerodatabox:2026-09");
+    await h.tick("2026-09-23T00:05:00Z");
+    expect(h.fetchDeparture).not.toHaveBeenCalled();
+    expect(titles(h.pushes)).toEqual(["AeroDataBox cap reached"]);
+  });
+});
+
+describe("landed-late", () => {
+  it("fires when a landing was missed, not the day after a landing that was handled", () => {
+    const landed = { ...inFlight(), state: "landed" as const, landedAt: "2026-09-20T12:30:00.000Z" };
+    const later = new Date("2026-09-21T15:00:00Z");
+    const missed = makeGuest({ ...settled, tracking: landed });
+    expect(timelineAlerts(missed, later, "https://x").map((a) => a.key)).toContain("landed-late");
+    const handled = makeGuest({ ...settled, tracking: landed, sends: { ...settled.sends, landedEmail: { status: "sent", at: "x", attempts: 1 } } });
+    expect(timelineAlerts(handled, later, "https://x").map((a) => a.key)).not.toContain("landed-late");
   });
 });

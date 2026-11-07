@@ -75,3 +75,39 @@ describe("parsePatch + applyPatch", () => {
     expect(applyPatch(g, { flight: { ...g.flight! } }).tracking.state).toBe("departed");
   });
 });
+
+describe("departFlight", () => {
+  it("is accepted, normalized and defaults to null", () => {
+    const r = parseCreate({ ...ok, departFlight: { number: "dl 88", date: "2026-09-23" } });
+    expect(r).toMatchObject({ ok: true, value: { departFlight: { number: "DL88", date: "2026-09-23" } } });
+    const g = newGuest(ok, new Date());
+    expect(g.departFlight).toBeNull();
+    expect(g.departTracking?.state).toBe("idle");
+  });
+  it("is validated by name", () => {
+    const r = parseCreate({ ...ok, departFlight: { number: "Delta", date: "9/23" } });
+    const errs = (r as { ok: false; errors: string[] }).errors.join("\n");
+    expect(errs).toContain("departFlight.number");
+    expect(errs).toContain("departFlight.date");
+  });
+  it("a change resets departure tracking and dep: alerts only", () => {
+    const g = makeGuest({
+      departFlight: { number: "DL88", date: "2026-09-23" },
+      departTracking: { state: "boarding", destination: "BOS", gate: "B12", scheduledDeparture: "x", estimatedDeparture: null, departedAt: null, lastCheckedAt: "x", lastError: null, consecutiveErrors: 0 },
+      tracking: { ...makeGuest().tracking, state: "landed", gate: "A1" },
+      alertsSent: ["dep:gate:B12", "landed", "pre-arrival-sent"],
+    });
+    const next = applyPatch(g, { departFlight: { number: "DL90", date: "2026-09-23" } });
+    expect(next.departTracking?.state).toBe("idle");
+    expect(next.alertsSent).toEqual(["landed", "pre-arrival-sent"]);
+    expect(next.tracking.state).toBe("landed");
+    const same = applyPatch(g, { departFlight: { number: "DL88", date: "2026-09-23" } });
+    expect(same.departTracking?.state).toBe("boarding");
+  });
+  it("an arrival flight change leaves departure tracking alone", () => {
+    const g = makeGuest({ departFlight: { number: "DL88", date: "2026-09-23" }, alertsSent: ["dep:delay:30"] });
+    g.departTracking = { ...g.departTracking!, state: "scheduled" } as never;
+    const next = applyPatch(g, { flight: { number: "DL2", date: "2026-09-20" } });
+    expect(next.alertsSent).toEqual(["dep:delay:30"]);
+  });
+});

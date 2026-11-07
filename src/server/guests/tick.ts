@@ -1,11 +1,11 @@
-import { SEND_KINDS, type Guest, type HomeVars, type SendKind, type SendRecord } from "../../lib/arrival/types";
+import { SEND_KINDS, departOf, type Guest, type HomeVars, type SendKind, type SendRecord } from "../../lib/arrival/types";
 import { addDays, etClock, etDateTime, etParts } from "../../lib/arrival/time";
 import { buildRoute } from "../../lib/arrival/route";
 import { filledCopy } from "../../lib/arrival/copy";
 import { rideLinks } from "../../lib/arrival/deeplinks";
 import { renderLandedEmail, renderPreArrivalEmail, renderSms } from "../../lib/arrival/render";
 import type { CounterStore, GuestStore } from "./store";
-import type { FlightResult } from "./flight";
+import type { DepartureResult, FlightResult } from "./flight";
 import type { SendResult } from "./email";
 import type { NtfyMessage } from "./ntfy";
 import { isExpired, pageUrl, routeInputFor } from "./view";
@@ -19,6 +19,7 @@ export interface TickDeps {
   store: GuestStore;
   counters: CounterStore;
   fetchFlight(number: string, date: string): Promise<FlightResult>;
+  fetchDeparture(number: string, date: string): Promise<DepartureResult>;
   sendEmail(m: { to: string; subject: string; html: string; text: string; idempotencyKey?: string }): Promise<SendResult>;
   sendSms(m: { to: string; body: string }): Promise<SendResult>;
   sendNtfy(m: NtfyMessage): Promise<{ ok: true } | { ok: false; error: string }>;
@@ -54,6 +55,83 @@ export function shouldPoll(g: Guest, now: Date): boolean {
   if (now < etDateTime(g.flight.date, 5)) return false;
   if (now >= etDateTime(addDays(g.flight.date, 1), 0)) return false;
   return since >= 59.5;
+}
+
+const DEPART_DONE = new Set(["departed", "cancelled"]);
+
+/** The flight home: one check from 8 pm ET the night before, then every 30 min from 4h before the scheduled
+ *  departure, every 10 min once it's under 90 min away, until it's gone, cancelled, or 3h past. */
+export function shouldPollDeparture(g: Guest, now: Date): boolean {
+  const { flight, tracking: t } = departOf(g);
+  if (!flight) return false;
+  if (isExpired(g, now)) return false;
+  if (DEPART_DONE.has(t.state)) return false;
+  if (now < etDateTime(addDays(flight.date, -1), 20)) return false;
+  if (!t.lastCheckedAt) return true;
+  const since = (now.getTime() - Date.parse(t.lastCheckedAt)) / MIN;
+  if (t.scheduledDeparture) {
+    const expected = Date.parse(t.estimatedDeparture ?? t.scheduledDeparture);
+    if (now.getTime() > expected + 3 * HOUR) return false;
+    if (now.getTime() < Date.parse(t.scheduledDeparture) - 4 * HOUR) return false;
+    const interval = expected - now.getTime() < 90 * MIN ? 10 : 30;
+    return since >= interval - 0.5;
+  }
+  // No schedule yet: hourly from 5am ET on the flight date, that day only.
+  if (now < etDateTime(flight.date, 5)) return false;
+  if (now >= etDateTime(addDays(flight.date, 1), 0)) return false;
+  return since >= 59.5;
+}
+
+export function applyDeparture(g: Guest, result: DepartureResult, now: Date): { guest: Guest; alerts: Alert[] } {
+  const guest = structuredClone(g);
+  const { flight, tracking } = departOf(guest);
+  const t = structuredClone(tracking);
+  guest.departTracking = t;
+  const alerts: Alert[] = [];
+  const who = `${guest.firstName}'s flight home (${flight?.number ?? "?"})`;
+  t.lastCheckedAt = now.toISOString();
+
+  if (!result.ok) {
+    t.consecutiveErrors += 1;
+    t.lastError = result.error;
+    if (t.consecutiveErrors >= 3) {
+      alerts.push({ key: `dep:errors:${etParts(now).date}`, title: "Flight home tracking failing", priority: "high",
+        body: `${who}: ${t.consecutiveErrors} failed checks in a row (${result.error}).` });
+    }
+    return { guest, alerts };
+  }
+  t.consecutiveErrors = 0;
+  t.lastError = null;
+
+  const s = result.snapshot;
+  if (!s) {
+    alerts.push({ key: "dep:not-found", title: "Guest flight home not found", priority: "high",
+      body: `AeroDataBox has no ${flight?.number} on ${flight?.date} out of ATL. check the number and date for ${guest.name}.` });
+    return { guest, alerts };
+  }
+
+  const prevGate = t.gate;
+  Object.assign(t, s);
+
+  if (s.scheduledDeparture && s.estimatedDeparture && (s.state === "scheduled" || s.state === "boarding")) {
+    const late = Math.round((Date.parse(s.estimatedDeparture) - Date.parse(s.scheduledDeparture)) / MIN);
+    if (late >= 30) {
+      alerts.push({ key: `dep:delay:${Math.floor(late / 30) * 30}`, title: "Guest flight home delayed",
+        body: `${who} is running ${late} min late, now leaving ${etClock(s.estimatedDeparture)}.` });
+    }
+  }
+  if (prevGate && s.gate && prevGate !== s.gate) {
+    alerts.push({ key: `dep:gate:${s.gate}`, title: "Guest flight home: gate change", body: `${who}: gate ${prevGate} -> ${s.gate}.` });
+  }
+  return { guest, alerts };
+}
+
+/** Derived from persisted state each tick, so a failed ntfy delivery is retried. */
+export function departureAlerts(g: Guest): Alert[] {
+  const { flight, tracking: t } = departOf(g);
+  if (!flight || t.state !== "cancelled") return [];
+  return [{ key: "dep:cancelled", title: "Guest flight home cancelled", priority: "high",
+    body: `${g.firstName}'s flight home (${flight.number}) shows cancelled. their page tells them to call you.` }];
 }
 
 export function applySnapshot(g: Guest, result: FlightResult, now: Date): { guest: Guest; alerts: Alert[] } {
@@ -149,7 +227,8 @@ export function timelineAlerts(g: Guest, now: Date, site: string): Alert[] {
       title: t.state === "cancelled" ? "Guest flight cancelled" : "Guest flight diverted",
       body: `${who} shows ${t.state}. nothing has been sent to them.` });
   }
-  if (t.state === "landed" && !landedRecently(g, now)) {
+  // Only when nothing went out: a handled landing ages past landedRecently 6h later and must not push this.
+  if (t.state === "landed" && !landedRecently(g, now) && !g.sends.landedEmail && !g.sends.landedSms) {
     const when = t.landedAt ? etClock(t.landedAt) : "no landing time";
     a.push({ key: "landed-late", title: "Guest landed, nothing sent", priority: "high",
       body: `${who} shows landed (${when}) but too late or too unclear to send steps. nothing was sent to them.` });
@@ -206,25 +285,43 @@ export async function runTick(d: TickDeps): Promise<TickSummary> {
       const before = JSON.stringify(g); // g === original until applySnapshot clones; mutating g would mutate original too
       const alerts: Alert[] = [];
 
-      if (shouldPoll(g, d.now)) {
-        const used = await d.counters.get(monthKey);
+      const budgetOk = async (): Promise<boolean> => {
         if (d.monthlyCap <= 0) {
           alerts.push({ key: "cap-unset", title: "Flight tracking is off", priority: "high",
             body: `AERODATABOX_MONTHLY_CAP isn't set, so ${g.firstName}'s flight isn't being tracked and nothing will send at landing.` });
-        } else if (used >= d.monthlyCap) {
+          return false;
+        }
+        const used = await d.counters.get(monthKey);
+        if (used >= d.monthlyCap) {
           alerts.push({ key: `cap:${monthKey}`, title: "AeroDataBox cap reached", priority: "high",
             body: `${used}/${d.monthlyCap} calls this month. tracking is paused, nothing will send at landing. raise AERODATABOX_MONTHLY_CAP if the plan allows.` });
-        } else {
-          const result = await d.fetchFlight(g.flight!.number, g.flight!.date);
-          const n = await d.counters.increment(monthKey);
-          if (n >= Math.ceil(d.monthlyCap * 0.8)) {
-            alerts.push({ key: `cap80:${monthKey}`, title: "AeroDataBox 80% used", body: `${n}/${d.monthlyCap} calls this month.` });
-          }
-          const applied = applySnapshot(g, result, d.now);
-          g = applied.guest;
-          alerts.push(...applied.alerts);
-          summary.polled++;
+          return false;
         }
+        return true;
+      };
+      const countCall = async () => {
+        const n = await d.counters.increment(monthKey);
+        if (n >= Math.ceil(d.monthlyCap * 0.8)) {
+          alerts.push({ key: `cap80:${monthKey}`, title: "AeroDataBox 80% used", body: `${n}/${d.monthlyCap} calls this month.` });
+        }
+        summary.polled++;
+      };
+
+      if (shouldPoll(g, d.now) && (await budgetOk())) {
+        const result = await d.fetchFlight(g.flight!.number, g.flight!.date);
+        await countCall();
+        const applied = applySnapshot(g, result, d.now);
+        g = applied.guest;
+        alerts.push(...applied.alerts);
+      }
+
+      if (shouldPollDeparture(g, d.now) && (await budgetOk())) {
+        const f = departOf(g).flight!;
+        const result = await d.fetchDeparture(f.number, f.date);
+        await countCall();
+        const applied = applyDeparture(g, result, d.now);
+        g = applied.guest;
+        alerts.push(...applied.alerts);
       }
 
       // Mutate expired "sending" leases here; timelineAlerts (below) derives the stuck/failed
@@ -237,6 +334,7 @@ export async function runTick(d: TickDeps): Promise<TickSummary> {
       }
 
       alerts.push(...timelineAlerts(g, d.now, d.siteUrl));
+      alerts.push(...departureAlerts(g));
 
       for (const kind of dueSends(g, d.now)) {
         const attempts = (g.sends[kind]?.attempts ?? 0) + 1;

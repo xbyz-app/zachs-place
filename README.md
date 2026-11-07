@@ -87,11 +87,14 @@ curl -X POST https://guest.xbyz.fun/api/guests \
   -H "Authorization: Bearer $GUEST_API_KEY" -H "Content-Type: application/json" \
   -d '{"name":"Full Name","firstName":"What Zach calls them","email":"them@example.com","phone":"+14045550100",
        "arriveDate":"2026-10-01","departDate":"2026-10-04","flight":{"number":"DL1234","date":"2026-10-01"},
-       "checkedBag":null,"pickup":"rideshare","doorInvited":false}'
+       "departFlight":{"number":"DL88","date":"2026-10-04"},"checkedBag":null,"pickup":"rideshare","doorInvited":false}'
 ```
 
 - `checkedBag`: `true`/`false`/`null`. Leave it `null` until you know; the messages cover both cases.
 - `flight.date` is the departure date on their ticket.
+- `departFlight` (optional) is their flight home from ATL; `date` is its departure date. From the day before it, the page
+  shows a "your flight home" card (gate, time, on time / late / boarding / took off). Nothing is sent to the guest; Zach
+  gets ntfy pushes for not found, delays of 30+ min, gate changes and cancellation. Changing it restarts that tracking.
 - Unknown fields are rejected on purpose.
 - Update: `PATCH /api/guests?id=<id>` with any subset (e.g. `{"doorInvited":true}`). Changing `flight` restarts tracking.
 - List: `GET /api/guests`. Remove: `DELETE /api/guests?id=<id>`.

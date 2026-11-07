@@ -1,6 +1,6 @@
 import { runTick } from "../../src/server/guests/tick";
 import { blobGuestStore, blobCounterStore } from "../../src/server/guests/store";
-import { fetchFlight } from "../../src/server/guests/flight";
+import { fetchDeparture, fetchFlight } from "../../src/server/guests/flight";
 import { sendEmail } from "../../src/server/guests/email";
 import { sendSms } from "../../src/server/guests/sms";
 import { sendNtfy } from "../../src/server/guests/ntfy";
@@ -24,7 +24,7 @@ export default async function handler(): Promise<Response> {
     }
     const cap = Number(process.env.AERODATABOX_MONTHLY_CAP);
     const summary = await runTick({
-      store: blobGuestStore(), counters, fetchFlight, sendEmail, sendSms, sendNtfy, now,
+      store: blobGuestStore(), counters, fetchFlight, fetchDeparture, sendEmail, sendSms, sendNtfy, now,
       siteUrl: siteUrl(), home: home.home, zachPhone: process.env.ZACH_PHONE ?? null,
       monthlyCap: Number.isFinite(cap) && cap > 0 ? cap : 0,
     });
