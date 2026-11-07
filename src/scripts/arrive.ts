@@ -2,7 +2,7 @@ import { buildRoute } from "../lib/arrival/route";
 import { groupSteps } from "../lib/arrival/render";
 import { BRANCH_LABEL } from "../lib/arrival/copy";
 import { CONCOURSES, type Concourse, type PageModel } from "../lib/arrival/types";
-import { shouldRefresh, statusLine, tokenFromPath } from "../lib/arrival/page";
+import { departureLine, shouldRefresh, showDeparture, statusLine, tokenFromPath } from "../lib/arrival/page";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const token = tokenFromPath(location.pathname);
@@ -56,7 +56,13 @@ function paint() {
   $("gone").hidden = true;
   $("page").hidden = false;
   $("hello").textContent = `welcome, ${m.firstName}.`;
-  $("status").textContent = statusLine(m.flight);
+  // Records cached before departures existed have no `departure` key.
+  const dep = m.departure ?? null;
+  const leaving = showDeparture(dep, new Date());
+  $("home-flight").hidden = !leaving;
+  if (leaving) $("home-flight-line").textContent = departureLine(dep);
+  // Once they've landed, the arrival line is old news on the way home.
+  $("status").textContent = leaving && m.flight?.state === "landed" ? "" : statusLine(m.flight);
   const ride = m.route.pickup === "rideshare";
   $("ride").hidden = !ride;
   if (ride) {
@@ -111,5 +117,5 @@ try {
 } catch {}
 void load(true);
 setInterval(() => {
-  if (document.visibilityState === "visible" && model && shouldRefresh(model.flight)) void load(false);
+  if (document.visibilityState === "visible" && model && shouldRefresh(model.flight, model.departure ?? null)) void load(false);
 }, 60_000);

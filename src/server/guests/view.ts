@@ -1,4 +1,4 @@
-import type { Guest } from "../../lib/arrival/types";
+import { departOf, type Guest } from "../../lib/arrival/types";
 import type { RouteInput } from "../../lib/arrival/types";
 import type { HomeVars, PageModel } from "../../lib/arrival/types";
 import { addDays, etDateTime, etHour } from "../../lib/arrival/time";
@@ -32,11 +32,19 @@ export function isExpired(g: Guest, now: Date): boolean {
 
 export function pageModel(g: Guest, home: HomeVars, zachPhone: string | null): PageModel {
   const t = g.tracking;
+  const dep = departOf(g);
   return {
     firstName: g.firstName,
     arriveDate: g.arriveDate,
     flight: g.flight
       ? { number: g.flight.number, state: t.state, gate: t.gate, scheduledArrival: t.scheduledArrival, estimatedArrival: t.estimatedArrival, landedAt: t.landedAt }
+      : null,
+    departure: dep.flight
+      ? {
+          number: dep.flight.number, date: dep.flight.date, state: dep.tracking.state, destination: dep.tracking.destination,
+          gate: dep.tracking.gate, scheduledDeparture: dep.tracking.scheduledDeparture,
+          estimatedDeparture: dep.tracking.estimatedDeparture, departedAt: dep.tracking.departedAt,
+        }
       : null,
     route: routeInputFor(g),
     copy: filledCopy(home),
