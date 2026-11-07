@@ -11,8 +11,8 @@ import TodayStrip from "../components/TodayStrip.astro";
   <InstallHint />
   <main class="guest">
     <section class="hero">
-      <h1>You're at Zach's place.</h1>
-      <p class="hero-sub">Welcome — make yourself at home.</p>
+      <h1 data-welcome-title>You're at Zach's place.</h1>
+      <p class="hero-sub" data-welcome-sub>Welcome — make yourself at home.</p>
     </section>
 
     <TodayStrip />
@@ -40,6 +40,7 @@ import TodayStrip from "../components/TodayStrip.astro";
     import "../scripts/living.ts";
     import "../scripts/feedback.ts";
     import "../scripts/today.ts";
+    import "../scripts/welcome.ts";
   </script>
 
   <style>

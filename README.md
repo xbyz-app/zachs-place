@@ -49,11 +49,13 @@ MANUAL_DIR=/tmp/scratch-manual PORT=4400 npm run manual
 
 Or just edit the markdown files directly — nothing about the editor is required.
 
-### Guest-specific copy
+### Greeting the guest
 
-The hero subtitle in `src/pages/guest.astro` is sometimes personalised for whoever
-is visiting. When it is, the evergreen line is parked in a comment directly above
-it — swap it back when they leave.
+The hero greets whoever is staying, by first name, from the stay records (the
+`guests` blob store the arrival flow writes). `/api/welcome` returns only the
+`firstName` of each guest whose stay covers today in Atlanta time, arrival day
+through departure day. With nobody staying, or if the call fails, the page keeps
+the evergreen "You're at Zach's place." No more hand-editing the subtitle.
 
 ## Design spec
 
