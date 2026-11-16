@@ -1,4 +1,4 @@
-import { CONCOURSES, type Concourse, type TrackingState } from "../../lib/arrival/types";
+import { CONCOURSES, type Concourse, type DepartState, type TrackingState } from "../../lib/arrival/types";
 
 export interface FlightSnapshot {
   state: Exclude<TrackingState, "idle">;
@@ -85,19 +85,71 @@ export function normalizeAeroDataBox(raw: unknown, flightDate: string): FlightSn
   };
 }
 
-export async function fetchFlight(number: string, date: string): Promise<FlightResult> {
+export interface DepartureSnapshot {
+  state: Exclude<DepartState, "idle">;
+  destination: string | null;
+  gate: string | null;
+  scheduledDeparture: string | null;
+  estimatedDeparture: string | null;
+  departedAt: string | null;
+}
+
+export type DepartureResult = { ok: true; snapshot: DepartureSnapshot | null } | { ok: false; error: string };
+
+function mapDepartStatus(s: unknown): DepartureSnapshot["state"] {
+  switch (String(s ?? "").toLowerCase()) {
+    case "boarding": case "gateclosed": return "boarding";
+    case "departed": case "enroute": case "en route": case "approaching": case "airborne":
+    case "arrived": case "landed": case "diverted": return "departed";
+    case "canceled": case "cancelled": case "canceleduncertain": return "cancelled";
+    case "unknown": return "unknown";
+    default: return "scheduled"; // Expected, CheckIn, Delayed, missing
+  }
+}
+
+/** The leg leaving ATL on `flightDate` (else the first leg leaving ATL). */
+export function normalizeDeparture(raw: unknown, flightDate: string): DepartureSnapshot | null {
+  const list: Raw[] = Array.isArray(raw) ? raw : Array.isArray((raw as Raw)?.data) ? (raw as Raw).data : [];
+  const fromAtl = list.filter((f) => f?.departure?.airport?.iata === "ATL");
+  if (fromAtl.length === 0) return null;
+  const f = fromAtl.find((x) => (iso(x.departure?.scheduledTime) ?? "").slice(0, 10) === flightDate) ?? fromAtl[0];
+  const state = mapDepartStatus(f.status);
+  const estimatedDeparture = iso(f.departure?.revisedTime) ?? iso(f.departure?.predictedTime);
+  return {
+    state,
+    destination: (f.arrival?.airport?.iata as string | undefined) ?? null,
+    gate: (f.departure?.gate as string | undefined)?.trim() || null,
+    scheduledDeparture: iso(f.departure?.scheduledTime),
+    estimatedDeparture,
+    departedAt: state === "departed" ? iso(f.departure?.runwayTime) ?? estimatedDeparture ?? iso(f.departure?.scheduledTime) : null,
+  };
+}
+
+type RawResult = { ok: true; data: unknown | null } | { ok: false; error: string };
+
+async function fetchRaw(number: string, date: string): Promise<RawResult> {
   const key = process.env.AERODATABOX_API_KEY;
   if (!key) return { ok: false, error: "AERODATABOX_API_KEY not set" };
   const url = `https://prod.api.market/api/v1/aedbx/aerodatabox/flights/number/${encodeURIComponent(number)}/${date}`;
   try {
     const res = await fetch(url, { headers: { "x-api-market-key": key }, signal: AbortSignal.timeout(4000) });
     const text = await res.text();
-    if (res.status === 404 || res.status === 204 || (res.ok && !text.trim())) return { ok: true, snapshot: null };
+    if (res.status === 404 || res.status === 204 || (res.ok && !text.trim())) return { ok: true, data: null };
     if (!res.ok) return { ok: false, error: `aerodatabox ${res.status}: ${text.slice(0, 200)}` };
-    let data: unknown;
-    try { data = JSON.parse(text); } catch { return { ok: false, error: `aerodatabox bad json: ${text.slice(0, 200)}` }; }
-    return { ok: true, snapshot: normalizeAeroDataBox(data, date) };
+    try { return { ok: true, data: JSON.parse(text) }; } catch { return { ok: false, error: `aerodatabox bad json: ${text.slice(0, 200)}` }; }
   } catch (e) {
     return { ok: false, error: `aerodatabox unreachable: ${(e as Error).message}` };
   }
+}
+
+export async function fetchFlight(number: string, date: string): Promise<FlightResult> {
+  const r = await fetchRaw(number, date);
+  if (!r.ok) return r;
+  return { ok: true, snapshot: r.data === null ? null : normalizeAeroDataBox(r.data, date) };
+}
+
+export async function fetchDeparture(number: string, date: string): Promise<DepartureResult> {
+  const r = await fetchRaw(number, date);
+  if (!r.ok) return r;
+  return { ok: true, snapshot: r.data === null ? null : normalizeDeparture(r.data, date) };
 }

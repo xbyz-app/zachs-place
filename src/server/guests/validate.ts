@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { emptyTracking, type Guest, type Pickup } from "../../lib/arrival/types";
+import { emptyDepartTracking, emptyTracking, type Guest, type Pickup } from "../../lib/arrival/types";
 
 export interface GuestInput {
   name: string;
@@ -9,6 +9,7 @@ export interface GuestInput {
   arriveDate: string;
   departDate: string;
   flight?: { number: string; date: string } | null;
+  departFlight?: { number: string; date: string } | null;
   checkedBag?: boolean | null;
   pickup?: Pickup;
   doorInvited?: boolean;
@@ -17,7 +18,7 @@ export interface GuestInput {
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
-const ALLOWED = new Set(["name", "firstName", "email", "phone", "arriveDate", "departDate", "flight", "checkedBag", "pickup", "doorInvited", "buildingRegistered"]);
+const ALLOWED = new Set(["name", "firstName", "email", "phone", "arriveDate", "departDate", "flight", "departFlight", "checkedBag", "pickup", "doorInvited", "buildingRegistered"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const E164 = /^\+[1-9]\d{7,14}$/;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -63,15 +64,14 @@ function check(body: unknown, partial: boolean): Parsed<Partial<GuestInput>> {
       if (validDate(b[k])) out[k] = b[k] as string; else errors.push(`${k} must be a real YYYY-MM-DD date`);
     }
   }
-  if (has("flight")) {
-    if (b.flight === null) out.flight = null;
-    else {
-      const f = (typeof b.flight === "object" && b.flight !== null ? b.flight : {}) as Record<string, unknown>;
-      const number = typeof f.number === "string" ? normalizeFlightNumber(f.number) : null;
-      if (!number) errors.push('flight.number must look like "DL1234"');
-      if (!validDate(f.date)) errors.push("flight.date must be YYYY-MM-DD (the departure date on their ticket)");
-      if (number && validDate(f.date)) out.flight = { number, date: f.date };
-    }
+  for (const k of ["flight", "departFlight"] as const) {
+    if (!has(k)) continue;
+    if (b[k] === null) { out[k] = null; continue; }
+    const f = (typeof b[k] === "object" && b[k] !== null ? b[k] : {}) as Record<string, unknown>;
+    const number = typeof f.number === "string" ? normalizeFlightNumber(f.number) : null;
+    if (!number) errors.push(`${k}.number must look like "DL1234"`);
+    if (!validDate(f.date)) errors.push(`${k}.date must be YYYY-MM-DD (the departure date on their ticket)`);
+    if (number && validDate(f.date)) out[k] = { number, date: f.date };
   }
   if (has("checkedBag")) {
     if (b.checkedBag === null || typeof b.checkedBag === "boolean") out.checkedBag = b.checkedBag;
@@ -110,11 +110,13 @@ export function newGuest(input: GuestInput, now: Date, rand: (n: number) => Buff
     arriveDate: input.arriveDate,
     departDate: input.departDate,
     flight: input.flight ?? null,
+    departFlight: input.departFlight ?? null,
     checkedBag: input.checkedBag ?? null,
     pickup: input.pickup ?? "rideshare",
     doorInvited: input.doorInvited ?? false,
     buildingRegistered: input.buildingRegistered ?? false,
     tracking: emptyTracking(),
+    departTracking: emptyDepartTracking(),
     sends: {},
     alertsSent: [],
     createdAt: now.toISOString(),
@@ -133,6 +135,11 @@ export function applyPatch(g: Guest, patch: Partial<GuestInput>): Guest {
     delete next.sends.landedEmail;
     delete next.sends.landedSms;
     next.alertsSent = next.alertsSent.filter((k) => !FLIGHT_ALERT.test(k));
+  }
+  const departChanged = Object.hasOwn(patch, "departFlight") && JSON.stringify(patch.departFlight ?? null) !== JSON.stringify(g.departFlight ?? null);
+  if (departChanged) {
+    next.departTracking = emptyDepartTracking();
+    next.alertsSent = next.alertsSent.filter((k) => !k.startsWith("dep:"));
   }
   return next;
 }

@@ -3,7 +3,9 @@
 // first good read, so a Home Assistant outage shows nothing rather than "--".
 ---
 <div class="weather" data-weather hidden>
-  <div class="weather-now">
+  <!-- The Today strip at the top already shows the temperature now, so this
+       card shows only the next three days. -->
+  <div class="weather-now" hidden>
     <span class="weather-temp" data-weather-temp></span>
     <span class="weather-label" data-weather-label></span>
   </div>
@@ -18,6 +20,7 @@
     padding: var(--space-4);
     margin-bottom: var(--space-2);
   }
+  .weather-now[hidden] { display: none; }
   .weather-now {
     display: flex;
     align-items: baseline;
@@ -35,7 +38,7 @@
   }
   .weather-days {
     list-style: none;
-    margin: var(--space-4) 0 0;
+    margin: 0;
     padding: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);

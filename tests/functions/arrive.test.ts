@@ -38,7 +38,7 @@ describe("/api/arrive", () => {
     const res = await get(TOKEN);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(Object.keys(body).sort()).toEqual(["address", "arriveDate", "copy", "firstName", "flight", "links", "route", "zachPhone"]);
+    expect(Object.keys(body).sort()).toEqual(["address", "arriveDate", "copy", "departure", "firstName", "flight", "links", "route", "zachPhone"]);
     const raw = JSON.stringify(body);
     for (const secret of ["testy@example.test", "+15555550111", "Testy McTest", TOKEN]) expect(raw).not.toContain(secret);
     expect(body.route).toEqual({ airline: "DL", checkedBag: null, concourse: "B", international: false, pickup: "rideshare", arrivalHourET: null });

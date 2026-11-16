@@ -49,11 +49,13 @@ MANUAL_DIR=/tmp/scratch-manual PORT=4400 npm run manual
 
 Or just edit the markdown files directly — nothing about the editor is required.
 
-### Guest-specific copy
+### Greeting the guest
 
-The hero subtitle in `src/pages/guest.astro` is sometimes personalised for whoever
-is visiting. When it is, the evergreen line is parked in a comment directly above
-it — swap it back when they leave.
+The hero greets whoever is staying, by first name, from the stay records (the
+`guests` blob store the arrival flow writes). `/api/welcome` returns only the
+`firstName` of each guest whose stay covers today in Atlanta time, arrival day
+through departure day. With nobody staying, or if the call fails, the page keeps
+the evergreen "You're at Zach's place." No more hand-editing the subtitle.
 
 ## Design spec
 
@@ -87,11 +89,14 @@ curl -X POST https://guest.xbyz.fun/api/guests \
   -H "Authorization: Bearer $GUEST_API_KEY" -H "Content-Type: application/json" \
   -d '{"name":"Full Name","firstName":"What Zach calls them","email":"them@example.com","phone":"+14045550100",
        "arriveDate":"2026-10-01","departDate":"2026-10-04","flight":{"number":"DL1234","date":"2026-10-01"},
-       "checkedBag":null,"pickup":"rideshare","doorInvited":false}'
+       "departFlight":{"number":"DL88","date":"2026-10-04"},"checkedBag":null,"pickup":"rideshare","doorInvited":false}'
 ```
 
 - `checkedBag`: `true`/`false`/`null`. Leave it `null` until you know; the messages cover both cases.
 - `flight.date` is the departure date on their ticket.
+- `departFlight` (optional) is their flight home from ATL; `date` is its departure date. From the day before it, the page
+  shows a "your flight home" card (gate, time, on time / late / boarding / took off). Nothing is sent to the guest; Zach
+  gets ntfy pushes for not found, delays of 30+ min, gate changes and cancellation. Changing it restarts that tracking.
 - Unknown fields are rejected on purpose.
 - Update: `PATCH /api/guests?id=<id>` with any subset (e.g. `{"doorInvited":true}`). Changing `flight` restarts tracking.
 - List: `GET /api/guests`. Remove: `DELETE /api/guests?id=<id>`.

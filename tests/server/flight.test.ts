@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { normalizeAeroDataBox, fetchFlight, concourseFrom, airlineFromFlightNumber } from "../../src/server/guests/flight";
+import { normalizeAeroDataBox, normalizeDeparture, fetchFlight, fetchDeparture, concourseFrom, airlineFromFlightNumber } from "../../src/server/guests/flight";
 
 const ORIGINAL_FETCH = global.fetch;
 afterEach(() => { global.fetch = ORIGINAL_FETCH; delete process.env.AERODATABOX_API_KEY; });
@@ -120,5 +120,62 @@ describe("fetchFlight", () => {
     expect(await fetchFlight("DL1234", "2026-09-20")).toMatchObject({ ok: false, error: expect.stringContaining("ECONNRESET") });
     global.fetch = vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")) as unknown as typeof fetch;
     expect((await fetchFlight("DL1234", "2026-09-20")).ok).toBe(false);
+  });
+});
+
+// DL88: ATL 18:10 ET (22:10Z) -> BOS on 2026-09-23.
+function home(o: { status?: string; gate?: string; revised?: string; runway?: string; depart?: string; from?: string; to?: string } = {}) {
+  return {
+    number: "DL 88",
+    status: o.status ?? "Expected",
+    airline: { iata: "DL" },
+    departure: {
+      airport: { iata: o.from ?? "ATL", countryCode: "US" },
+      scheduledTime: { utc: o.depart ?? "2026-09-23 22:10Z" },
+      ...(o.revised ? { revisedTime: { utc: o.revised } } : {}),
+      ...(o.runway ? { runwayTime: { utc: o.runway } } : {}),
+      ...(o.gate ? { gate: o.gate } : {}),
+    },
+    arrival: { airport: { iata: o.to ?? "BOS", countryCode: "US" }, scheduledTime: { utc: "2026-09-24 00:40Z" } },
+  };
+}
+
+describe("normalizeDeparture", () => {
+  it("reads the ATL leg: destination, gate, schedule", () => {
+    expect(normalizeDeparture([home({ gate: "B12" })], "2026-09-23")).toEqual({
+      state: "scheduled", destination: "BOS", gate: "B12",
+      scheduledDeparture: "2026-09-23T22:10:00.000Z", estimatedDeparture: null, departedAt: null,
+    });
+  });
+  it("maps boarding, gate closed, gone, cancelled", () => {
+    const st = (s: string) => normalizeDeparture([home({ status: s })], "2026-09-23")!.state;
+    expect(st("Boarding")).toBe("boarding");
+    expect(st("GateClosed")).toBe("boarding");
+    for (const s of ["Departed", "EnRoute", "Approaching", "Arrived", "Diverted"]) expect(st(s)).toBe("departed");
+    expect(st("Canceled")).toBe("cancelled");
+    expect(st("Delayed")).toBe("scheduled");
+    expect(st("Unknown")).toBe("unknown");
+  });
+  it("revised time is the estimate; runway time is when it left", () => {
+    const s = normalizeDeparture([home({ status: "Departed", revised: "2026-09-23 22:50Z", runway: "2026-09-23 23:02Z" })], "2026-09-23")!;
+    expect(s.estimatedDeparture).toBe("2026-09-23T22:50:00.000Z");
+    expect(s.departedAt).toBe("2026-09-23T23:02:00.000Z");
+  });
+  it("ignores legs that don't leave ATL; picks the leg on the ticket date", () => {
+    expect(normalizeDeparture([home({ from: "LGA", to: "ATL" })], "2026-09-23")).toBeNull();
+    const legs = [home({ from: "LGA", to: "ATL", depart: "2026-09-23 18:00Z" }), home({ depart: "2026-09-22 22:10Z", to: "MIA" }), home({ to: "BOS" })];
+    expect(normalizeDeparture(legs, "2026-09-23")!.destination).toBe("BOS");
+  });
+});
+
+describe("fetchDeparture", () => {
+  it("shares the endpoint and error handling with arrivals", async () => {
+    process.env.AERODATABOX_API_KEY = "k";
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify([home({ gate: "D4" })]) }) as unknown as typeof fetch;
+    expect(await fetchDeparture("DL88", "2026-09-23")).toMatchObject({ ok: true, snapshot: { gate: "D4", destination: "BOS" } });
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, text: async () => "" }) as unknown as typeof fetch;
+    expect(await fetchDeparture("DL88", "2026-09-23")).toEqual({ ok: true, snapshot: null });
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => "x" }) as unknown as typeof fetch;
+    expect((await fetchDeparture("DL88", "2026-09-23")).ok).toBe(false);
   });
 });

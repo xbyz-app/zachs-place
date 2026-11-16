@@ -39,6 +39,27 @@ export interface Tracking {
   consecutiveErrors: number;
 }
 
+export type DepartState =
+  | "idle"       // never checked
+  | "scheduled"
+  | "boarding"   // Boarding or GateClosed
+  | "departed"   // took off (en route, landed, or diverted all count: they're gone)
+  | "cancelled"
+  | "unknown";
+
+/** Tracking for the flight home, which leaves ATL. */
+export interface DepartTracking {
+  state: DepartState;
+  destination: string | null;        // IATA
+  gate: string | null;
+  scheduledDeparture: string | null; // ISO UTC
+  estimatedDeparture: string | null;
+  departedAt: string | null;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  consecutiveErrors: number;
+}
+
 export interface Guest {
   id: string;
   token: string;                  // page URL secret
@@ -54,6 +75,9 @@ export interface Guest {
   doorInvited: boolean;
   buildingRegistered: boolean;
   tracking: Tracking;
+  /** The flight home from ATL. Absent on records made before departures were tracked: read via departOf(). */
+  departFlight?: { number: string; date: string } | null;
+  departTracking?: DepartTracking;
   sends: Partial<Record<SendKind, SendRecord>>;
   alertsSent: string[];
   createdAt: string;
@@ -94,6 +118,16 @@ export interface PageModel {
     estimatedArrival: string | null;
     landedAt: string | null;
   };
+  departure: null | {
+    number: string;
+    date: string;                  // YYYY-MM-DD, departure date on the ticket
+    state: DepartState;
+    destination: string | null;
+    gate: string | null;
+    scheduledDeparture: string | null;
+    estimatedDeparture: string | null;
+    departedAt: string | null;
+  };
   route: RouteInput;
   copy: Record<string, string>;   // STEP_COPY with placeholders already filled
   links: RideLinks;
@@ -107,4 +141,16 @@ export function emptyTracking(): Tracking {
     scheduledDeparture: null, scheduledArrival: null, estimatedArrival: null, landedAt: null,
     lastCheckedAt: null, lastError: null, consecutiveErrors: 0,
   };
+}
+
+export function emptyDepartTracking(): DepartTracking {
+  return {
+    state: "idle", destination: null, gate: null, scheduledDeparture: null, estimatedDeparture: null,
+    departedAt: null, lastCheckedAt: null, lastError: null, consecutiveErrors: 0,
+  };
+}
+
+/** The departing flight and its tracking, defaulted for records that predate them. */
+export function departOf(g: Guest): { flight: { number: string; date: string } | null; tracking: DepartTracking } {
+  return { flight: g.departFlight ?? null, tracking: g.departTracking ?? emptyDepartTracking() };
 }
