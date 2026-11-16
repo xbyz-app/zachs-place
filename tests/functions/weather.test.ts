@@ -23,6 +23,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   global.fetch = ORIGINAL_FETCH;
+  vi.useRealTimers();
 });
 
 describe("label", () => {
@@ -57,6 +58,9 @@ describe("shape", () => {
 
 describe("/api/weather handler", () => {
   it("reads the HA state and daily forecast with the guest token", async () => {
+    // The fixture's days are fixed, so pin "now" inside them (it failed once the real date passed Nov 10).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-07T11:00:00Z"));
     const mockFetch = vi.fn().mockImplementation(async (url: string) => ({
       ok: true,
       json: async () =>
