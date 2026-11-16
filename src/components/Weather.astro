@@ -1,0 +1,64 @@
+---
+// Filled in by src/scripts/weather.ts from /api/weather. Hidden until the
+// first good read, so a Home Assistant outage shows nothing rather than "--".
+---
+<div class="weather" data-weather hidden>
+  <!-- The Today strip at the top already shows the temperature now, so this
+       card shows only the next three days. -->
+  <div class="weather-now" hidden>
+    <span class="weather-temp" data-weather-temp></span>
+    <span class="weather-label" data-weather-label></span>
+  </div>
+  <ul class="weather-days" data-weather-days></ul>
+</div>
+
+<style>
+  .weather {
+    border-radius: var(--radius-tile);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    padding: var(--space-4);
+    margin-bottom: var(--space-2);
+  }
+  .weather-now[hidden] { display: none; }
+  .weather-now {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+  .weather-temp {
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+  .weather-label {
+    color: var(--text-secondary);
+    font-size: 15px;
+  }
+  .weather-days {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+  }
+  .weather-days :global(li) {
+    background: var(--bg-tile);
+    border-radius: var(--radius-chip);
+    padding: var(--space-2) var(--space-3);
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .weather-days :global(.day) {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .weather-days :global(.range) {
+    color: var(--text-muted);
+  }
+</style>

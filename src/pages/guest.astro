@@ -7,6 +7,7 @@ import Manual from "../components/Manual.astro";
 import InstallHint from "../components/InstallHint.astro";
 import Feedback from "../components/Feedback.astro";
 import TodayStrip from "../components/TodayStrip.astro";
+import Weather from "../components/Weather.astro";
 ---
 <BaseLayout title="Zach's Place">
   <InstallHint />
@@ -29,6 +30,12 @@ import TodayStrip from "../components/TodayStrip.astro";
       <LivingTile />
     </section>
 
+    <section class="around" aria-label="Around here">
+      <h2 class="section-title">Around here</h2>
+      <Weather />
+      <Manual collection="guide" />
+    </section>
+
     <section class="manual" aria-label="House manual">
       <h2 class="section-title">House manual</h2>
       <Manual />
@@ -43,6 +50,7 @@ import TodayStrip from "../components/TodayStrip.astro";
     import "../scripts/feedback.ts";
     import "../scripts/today.ts";
     import "../scripts/welcome.ts";
+    import "../scripts/weather.ts";
   </script>
 
   <style>
@@ -80,7 +88,7 @@ import TodayStrip from "../components/TodayStrip.astro";
       letter-spacing: 0.06em;
       color: var(--text-secondary);
     }
-    .controls, .manual {
+    .controls, .around, .manual {
       margin-top: var(--space-8);
     }
   </style>
